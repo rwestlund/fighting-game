@@ -40,6 +40,7 @@
         }
 
 	function toggleReady () {
+	    console.log("Readying for game...")
 	    socket.send(
 	    	JSON.stringify({
 	    		username:username,

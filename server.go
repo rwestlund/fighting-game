@@ -16,7 +16,7 @@ type Player struct {
 	Ready  bool
 }
 
-var players = make(map[Player]bool)
+var players = make(map[*Player]bool)
 var chatchan = make(chan Message)
 var upgrader = websocket.Upgrader{}
 
@@ -37,7 +37,7 @@ func main() {
 func globalChat() {
 	for {
 		msg := <-chatchan
-		for player := range players {
+		for player, _ := range(players) {
 			err := player.Socket.WriteJSON(msg)
 			if err != nil {
 				log.Printf("error: %v", err)
@@ -52,7 +52,7 @@ func matchmaker() {
 	for {
 		readyPlayers := make([]*Player, 0)
 		for player, _ := range(players) {
-			if player.Ready==true {readyPlayers = append(readyPlayers, &player)}
+			if player.Ready==true {readyPlayers = append(readyPlayers, player)}
 		}
 		log.Println(readyPlayers)
 	}
@@ -66,7 +66,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
         }
         defer socket.Close()
         newPlayer:=Player{socket,false}
-        players[newPlayer] = true
+        players[&newPlayer] = true
         for {
                 var msg Message
 		// Read the next message from chat
@@ -82,7 +82,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 		}
                 if err != nil {
                         log.Printf("error: %v", err)
-                        delete(players, newPlayer)
+                        delete(players, &newPlayer)
                         break
                 }
                 chatchan <- msg
