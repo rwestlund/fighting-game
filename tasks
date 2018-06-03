@@ -1,8 +1,0 @@
-Add to the frontend a way to start a duel with another player.
-
-Rewrite match.py in Go. Also figure out how it's going to display.
-
-Add kicks (guard breaks)?
- Kick: Deals 1 damage if it isn't blocked, but can be dodged. What does it do if they block? No stun. Hm... maybe it stuns but they can press a button to get un-stunned.
-
-Should dodging leave you in a backstepped state for a second?

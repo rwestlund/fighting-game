@@ -22,7 +22,8 @@
                 socket.send(
                     JSON.stringify({
                         username: username,
-                        message: newMsg // Strip out html
+                        message: newMsg,
+			command: ""
                     }
                 ));
                 document.getElementById("msgbox").value=""; // Reset the message box
@@ -40,11 +41,20 @@
         }
 
 	function toggleReady () {
-	    console.log("Readying for game...")
+	    console.log("(Un)readying for game...");
+            readyStatus = document.getElementById("readybutton").innerHTML;
+            if (readyStatus.search("Unready for game")==-1) {
+                var command = "READY";
+                document.getElementById("readybutton").innerHTML="Unready for game";
+            } else {
+                var command = "UNREADY";
+                document.getElementById("readybutton").innerHTML="Ready for game";
+            }
 	    socket.send(
 	    	JSON.stringify({
 	    		username:username,
-	    		message: "READY"
+	    		message: "",
+	    		command: command
 	    	}
 	    ));
 	}

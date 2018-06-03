@@ -9,6 +9,7 @@ import (
 type Message struct {
 	Username string	`json:"username"`
 	Content  string `json:"message"`
+	Command  string `json:"command"`
 }
 
 type Player struct {
@@ -54,7 +55,12 @@ func matchmaker() {
 		for player, _ := range(players) {
 			if player.Ready==true {readyPlayers = append(readyPlayers, player)}
 		}
-		log.Println(readyPlayers)
+//		log.Println(readyPlayers)
+		if len(readyPlayers) >= 2 {
+			readyPlayers[0].Ready=false
+			readyPlayers[1].Ready=false
+			go battle(readyPlayers[0].Socket,readyPlayers[1].Socket)
+		}
 	}
 }
 
@@ -71,20 +77,20 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
                 var msg Message
 		// Read the next message from chat
                 err := socket.ReadJSON(&msg)
-		log.Println("message:",msg)
-		if msg.Content=="READY" {
-			if !newPlayer.Ready {
-				newPlayer.Ready=true
-			} else {
-				newPlayer.Ready=false
-			}
-			continue
-		}
                 if err != nil {
                         log.Printf("error: %v", err)
                         delete(players, &newPlayer)
                         break
                 }
+		log.Println("message:",msg)
+		if msg.Command=="READY" {
+			newPlayer.Ready=true
+			continue
+		}
+		if msg.Command=="UNREADY" {
+			newPlayer.Ready=false
+			continue
+		}
                 chatchan <- msg
         }
 }
