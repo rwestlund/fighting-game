@@ -14,3 +14,32 @@ main {
     width: 100%;
     overflow-y: scroll;
 }
+
+#battleUI {
+    display: none;
+}
+
+#ownLifeBar {
+    width: 48%;
+    background-color: grey;
+    float:left;
+}
+
+#ownLife {
+    height: 30px;
+    width: 50%;
+    background-color: green;
+    float:left;
+}
+#enemyLifeBar {
+    width: 48%;
+    background-color: grey;
+    float:right;
+}
+
+#enemyLife {
+    height: 30px;
+    width: 70%;
+    background-color: green;
+    float:right;
+}

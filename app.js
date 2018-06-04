@@ -4,6 +4,10 @@ var username = null; // Our username
 var socket = new WebSocket('ws://' + window.location.host + '/ws');
 socket.addEventListener('message', function(e) {
   var msg = JSON.parse(e.data);
+  if (msg.command == "START GAME") {
+    battle();
+    return;
+  }
   chatContent += '<div class="chip">'
    + msg.username
    + '</div>'
@@ -63,4 +67,13 @@ function enter (event) {
     if (event.keyCode == 13) {
         send()
     }
+}
+
+function battle () {
+  document.getElementById('chat').style.display="none"
+  document.getElementById('battleUI').style.display="block"
+  // should probably play a sound to notify the user when they get matched
+  socket.addEventListener('message', function(e) {
+    var update = JSON.parse(e.data)
+  });
 }
