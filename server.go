@@ -14,13 +14,12 @@ type Message struct {
 }
 
 type User struct {
-	Socket *websocket.Conn
 	Ready  bool
 }
 
 
 
-var users = make(map[*User]bool)
+var users = make(map[*websocket.Conn]*User)
 var chatchan = make(chan Message)
 var upgrader = websocket.Upgrader{}
 var mutex = sync.Mutex{}
@@ -43,12 +42,12 @@ func globalChat() {
 	for {
 		msg := <-chatchan
 		mutex.Lock()
-		for user, _ := range users {
-			err := user.Socket.WriteJSON(msg)
+		for socket, _ := range users {
+			err := socket.WriteJSON(msg)
 			if err != nil {
 				log.Printf("error: %v", err)
-				user.Socket.Close()
-				delete(users, user)
+				socket.Close()
+				delete(users, socket)
 			}
 		}
 		mutex.Unlock()
@@ -58,18 +57,20 @@ func globalChat() {
 
 func matchmaker() {
 	for {
-		readyUsers := make([]*User, 0)
+		readyUsers := make([]*websocket.Conn, 0)
 		mutex.Lock()
-		for user, _ := range users {
+		for socket, user := range users {
+			//log.Println("Ready Users:",readyUsers)
 			if user.Ready == true {
-				readyUsers = append(readyUsers, user)
+				readyUsers = append(readyUsers, socket)
 			}
 		}
 		//		log.Println(readyUsers)
 		if len(readyUsers) >= 2 {
-			readyUsers[0].Ready = false
-			readyUsers[1].Ready = false
-			go battle(readyUsers[0].Socket, readyUsers[1].Socket)
+			log.Println("test: ",users[readyUsers[0]])
+			users[readyUsers[0]].Ready = false
+			users[readyUsers[1]].Ready = false
+			go battle(readyUsers[0], readyUsers[1])
 		}
 		mutex.Unlock()
 	}
@@ -83,8 +84,8 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 	defer socket.Close()
 	mutex.Lock()
-	newUser := User{socket, false}
-	users[&newUser] = true
+	newUser := User{false}
+	users[socket] = &newUser
 	mutex.Unlock()
 	for {
 		var msg Message
@@ -93,13 +94,14 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("error: %v", err)
 			mutex.Lock()
-			delete(users, &newUser)
+			delete(users, socket)
 			mutex.Unlock()
 			break
 		}
 		log.Println("message:", msg)
 		if msg.Command == "READY" {
 			newUser.Ready = true
+			log.Println(users)
 			continue
 		}
 		if msg.Command == "UNREADY" {
