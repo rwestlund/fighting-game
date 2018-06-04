@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type Message struct {
@@ -14,10 +15,8 @@ type Message struct {
 }
 
 type User struct {
-	Ready  bool
+	Ready bool
 }
-
-
 
 var users = make(map[*websocket.Conn]*User)
 var chatchan = make(chan Message)
@@ -57,17 +56,15 @@ func globalChat() {
 
 func matchmaker() {
 	for {
+		time.Sleep(1 * time.Second)
 		readyUsers := make([]*websocket.Conn, 0)
 		mutex.Lock()
 		for socket, user := range users {
-			//log.Println("Ready Users:",readyUsers)
 			if user.Ready == true {
 				readyUsers = append(readyUsers, socket)
 			}
 		}
-		//		log.Println(readyUsers)
 		if len(readyUsers) >= 2 {
-			log.Println("test: ",users[readyUsers[0]])
 			users[readyUsers[0]].Ready = false
 			users[readyUsers[1]].Ready = false
 			go battle(readyUsers[0], readyUsers[1])
@@ -98,10 +95,8 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 			mutex.Unlock()
 			break
 		}
-		log.Println("message:", msg)
 		if msg.Command == "READY" {
 			newUser.Ready = true
-			log.Println(users)
 			continue
 		}
 		if msg.Command == "UNREADY" {
