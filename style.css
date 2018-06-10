@@ -19,15 +19,24 @@ main {
     display: none;
 }
 
+#self {
+    float:left;
+    width:50%;
+}
+
+#enemy {
+    float:right;
+    width:50%;
+}
+
 #ownLifeBar {
     width: 48%;
     background-color: grey;
     float:left;
 }
-
 #ownLife {
     height: 30px;
-    width: 50%;
+    width: 100%;
     background-color: green;
     float:left;
 }
@@ -36,10 +45,32 @@ main {
     background-color: grey;
     float:right;
 }
-
 #enemyLife {
     height: 30px;
-    width: 70%;
+    width: 100%;
     background-color: green;
+    float:right;
+}
+
+#ownStamBar {
+    width: 48%;
+    background-color: grey;
+    float:left;
+}
+#ownStam {
+    height: 30px;
+    width: 100%;
+    background-color: yellow;
+    float:left;
+}
+#enemyStamBar {
+    width: 48%;
+    background-color: grey;
+    float:right;
+}
+#enemyStam {
+    height: 30px;
+    width: 100%;
+    background-color: yellow;
     float:right;
 }

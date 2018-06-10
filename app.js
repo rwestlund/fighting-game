@@ -2,7 +2,7 @@ var newMsg = ''; // Holds new messages to be sent to the server
 var chatContent = ''; // A running list of chat messages displayed on the screen
 var username = null; // Our username
 var socket = new WebSocket('ws://' + window.location.host + '/ws');
-socket.addEventListener('message', function(e) {
+socket.onmessage = function(e) {
   var msg = JSON.parse(e.data);
   if (msg.command == "START GAME") {
     battle();
@@ -13,10 +13,9 @@ socket.addEventListener('message', function(e) {
    + '</div>'
    + (msg.message) + '<br/>';
   var element = document.getElementById('chat-messages');
-  console.log("element is",element,"and chatContent is",chatContent);
   element.innerHTML=chatContent;
   element.scrollTop = element.scrollHeight; // Auto scroll to the bottom
-});
+};
 
 function send () {
     newMsg=document.getElementById("msgbox").value;
@@ -72,8 +71,39 @@ function enter (event) {
 function battle () {
   document.getElementById('chat').style.display="none"
   document.getElementById('battleUI').style.display="block"
+  console.log(document.getElementById('battleUI').style.display)
   // should probably play a sound to notify the user when they get matched
-  socket.addEventListener('message', function(e) {
-    var update = JSON.parse(e.data)
+  var input = "NONE"
+  document.addEventListener('keydown', function(e) {
+    if (e.keyCode == 32) {
+      input = "BLOCK"
+      return
+    }
+    if (e.keyCode == 81) {
+      input = "LIGHT"
+      return
+    }
+    if (e.keyCode == 87) {
+      input = "HEAVY"
+      return
+    }
+    if (e.shiftKey) {
+      input = "DODGE"
+      return
+    }
   });
+  socket.onmessage = function(e) {
+    console.log("update received:")
+    var update = JSON.parse(e.data)
+    console.log(update)
+    document.getElementById('ownLife').style.width=update.ownLife.toString()+"%"
+    document.getElementById('ownStam').style.width=update.ownStam.toString()+"%"
+    document.getElementById('enemyLife').style.width=update.enemyLife.toString()+"%"
+    document.getElementById('enemyStam').style.width=update.enemyStam.toString()+"%"
+  };
+  function sendUpdate () {
+    console.log("sending input to server:"+input)
+    socket.send(input)
+  }
+  setInterval(sendUpdate,1000)
 }

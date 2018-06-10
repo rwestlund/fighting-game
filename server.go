@@ -15,13 +15,15 @@ type Message struct {
 }
 
 type User struct {
-	Ready bool
+	Ready  bool
+	InGame bool
+	Mutex  sync.Mutex
 }
 
 var users = make(map[*websocket.Conn]*User)
 var chatchan = make(chan Message)
 var upgrader = websocket.Upgrader{}
-var mutex = sync.Mutex{}
+var global_mutex = sync.Mutex{}
 
 func main() {
 	fs := http.FileServer(http.Dir("./"))
@@ -40,7 +42,7 @@ func main() {
 func globalChat() {
 	for {
 		msg := <-chatchan
-		mutex.Lock()
+		global_mutex.Lock()
 		for socket, _ := range users {
 			err := socket.WriteJSON(msg)
 			if err != nil {
@@ -49,7 +51,7 @@ func globalChat() {
 				delete(users, socket)
 			}
 		}
-		mutex.Unlock()
+		global_mutex.Unlock()
 
 	}
 }
@@ -58,18 +60,26 @@ func matchmaker() {
 	for {
 		time.Sleep(1 * time.Second)
 		readyUsers := make([]*websocket.Conn, 0)
-		mutex.Lock()
+		global_mutex.Lock()
 		for socket, user := range users {
+			user.Mutex.Lock()
 			if user.Ready == true {
 				readyUsers = append(readyUsers, socket)
 			}
+			user.Mutex.Unlock()
 		}
 		if len(readyUsers) >= 2 {
+			users[readyUsers[0]].Mutex.Lock()
 			users[readyUsers[0]].Ready = false
+			users[readyUsers[0]].InGame = true
+			users[readyUsers[0]].Mutex.Unlock()
+			users[readyUsers[1]].Mutex.Lock()
 			users[readyUsers[1]].Ready = false
+			users[readyUsers[1]].InGame = true
+			users[readyUsers[1]].Mutex.Unlock()
 			go battle(readyUsers[0], readyUsers[1])
 		}
-		mutex.Unlock()
+		global_mutex.Unlock()
 	}
 }
 
@@ -80,32 +90,55 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	defer socket.Close()
-	mutex.Lock()
-	newUser := User{false}
+	global_mutex.Lock()
+	newUser := User{false, false, sync.Mutex{}}
 	users[socket] = &newUser
-	mutex.Unlock()
+	global_mutex.Unlock()
+	var msg Message
 	for {
-		var msg Message
-		// Read the next message from chat
+		newUser.Mutex.Lock()
+		for newUser.InGame {
+			time.Sleep(1 * time.Second)
+		}
 		err := socket.ReadJSON(&msg)
+		newUser.Mutex.Unlock()
+		// Read the next message from chat
+		log.Println("server.go trying to readJSON...")
+		log.Println("server.go got message:", msg)
 		if err != nil {
+			// This continue statement is here because this error is caused by the leftover
+			// messages that got stuck due to the mutex blocking getting read finally when
+			// the battle starts. It's not a fatal error, so I didn't want it crashing the
+			// program.
+			if err.Error() == "invalid character 'N' looking for beginning of value" {
+				continue
+			}
 			log.Printf("error: %v", err)
-			mutex.Lock()
+			global_mutex.Lock()
 			delete(users, socket)
-			mutex.Unlock()
+			global_mutex.Unlock()
 			break
 		}
 		if msg.Command == "READY" {
+			newUser.Mutex.Lock() // I don't know if these are necessary
 			newUser.Ready = true
+			newUser.Mutex.Unlock()
 			continue
 		}
 		if msg.Command == "UNREADY" {
+			newUser.Mutex.Lock() // I don't know if these are necessary
 			newUser.Ready = false
+			newUser.Mutex.Unlock()
 			continue
 		}
 		if msg.Command == "START GAME" {
 			continue
 		}
+		newUser.Mutex.Lock() // I don't know if these are necessary
+		if newUser.InGame {
+			continue
+		}
+		newUser.Mutex.Unlock()
 		chatchan <- msg
 	}
 }
