@@ -79,7 +79,7 @@ func matchmaker() {
 		users[readyUsers[1]].InGame = true
 		readyUsers[0].WriteJSON(Message{Username: "", Content: "", Command: "START GAME"})
 		readyUsers[1].WriteJSON(Message{Username: "", Content: "", Command: "START GAME"})
-		go battle(users[readyUsers[0]].BattleInputChan, users[readyUsers[1]].BattleInputChan, users[readyUsers[0]].BattleUpdateChan, users[readyUsers[0]].BattleUpdateChan)
+		go battle(users[readyUsers[0]].BattleInputChan, users[readyUsers[1]].BattleInputChan, users[readyUsers[0]].BattleUpdateChan, users[readyUsers[1]].BattleUpdateChan)
 		go forwardUpdates(readyUsers[0],users[readyUsers[0]].BattleUpdateChan)
 		go forwardUpdates(readyUsers[1],users[readyUsers[1]].BattleUpdateChan)
 		log.Println("test4")
