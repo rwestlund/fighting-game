@@ -1,14 +1,16 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
+//	"github.com/gorilla/websocket"
 	"log"
 	"time"
 	//	"net/http"
 )
 
 type Player struct {
-	Socket        *websocket.Conn
+	InputChan     chan Message
+	UpdateChan    chan Update
+	Command	      string
 	Life          int
 	Stamina       float32
 	State         string
@@ -19,11 +21,12 @@ type Player struct {
 
 func (p *Player) PassTime(amount int) {
 	p.StateDuration -= amount
-	p.Stamina -= 0.1
+	p.Stamina += 0.1
 	if p.Stamina > 100 {
 		p.Stamina = 100
 	}
 	if p.StateDuration <= 0 {
+		p.StateDuration = 0
 		p.Finished = p.State
 		p.State = "standing"
 	}
@@ -47,41 +50,35 @@ type Update struct {
 	EnemyBlockDur int     `json:"enemyBlockDur"`
 }
 
-func battle(player1socket, player2socket *websocket.Conn) {
-	// constants
+func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
 	log.Println("in battle")
-	global_mutex.Lock()
-	defer global_mutex.Unlock()
+//	global_mutex.Lock()
+//	defer global_mutex.Unlock()
+	// constants
 	const LIGHT_ATTACK_DMG int = 3
 	const LIGHT_ATTACK_COST float32 = 5.0
 	const LIGHT_ATTACK_BLK_COST float32 = 5.0
 	const LIGHT_ATTACK_SPD int = 50
-	player1 := Player{Socket: player1socket, Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}
-	player2 := Player{Socket: player2socket, Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}
+	player1 := Player{InputChan: player1inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}
+	player2 := Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}
 	players := []*Player{&player1, &player2}
-	player1.Socket.WriteJSON(Message{Username: "", Content: "", Command: "START GAME"})
-	player2.Socket.WriteJSON(Message{Username: "", Content: "", Command: "START GAME"})
-	// mainloop
+	go input(&player1)
+	go input(&player2)
+
 	for player1.Life > 0 && player2.Life > 0 {
 		log.Println("mainloop")
-		time.Sleep(time.Second)
-		player1.Socket.WriteJSON(Update{OwnLife: player1.Life, OwnStam: player1.Stamina, OwnState: player1.State, OwnStateDur: player1.StateDuration, OwnBlockDur: player1.BlockDuration, EnemyLife: player2.Life, EnemyStam: player2.Stamina, EnemyState: player2.State, EnemyStateDur: player2.StateDuration, EnemyBlockDur: player2.BlockDuration})
-		player2.Socket.WriteJSON(Update{OwnLife: player2.Life, OwnStam: player2.Stamina, OwnState: player2.State, OwnStateDur: player2.StateDuration, OwnBlockDur: player2.BlockDuration, EnemyLife: player1.Life, EnemyStam: player1.Stamina, EnemyState: player1.State, EnemyStateDur: player1.StateDuration, EnemyBlockDur: player1.BlockDuration})
+		time.Sleep(1000 * time.Millisecond)
+		player1.UpdateChan <- Update{OwnLife: player1.Life, OwnStam: player1.Stamina, OwnState: player1.State, OwnStateDur: player1.StateDuration, OwnBlockDur: player1.BlockDuration, EnemyLife: player2.Life, EnemyStam: player2.Stamina, EnemyState: player2.State, EnemyStateDur: player2.StateDuration, EnemyBlockDur: player2.BlockDuration}
+		player2.UpdateChan <- Update{OwnLife: player2.Life, OwnStam: player2.Stamina, OwnState: player2.State, OwnStateDur: player2.StateDuration, OwnBlockDur: player2.BlockDuration, EnemyLife: player1.Life, EnemyStam: player1.Stamina, EnemyState: player1.State, EnemyStateDur: player1.StateDuration, EnemyBlockDur: player1.BlockDuration}
 		// Do the backend stuff.
 		for _, player := range players {
 			player.PassTime(1)
 		}
-
 		// Get input from the players.
 		for _, player := range players {
-			log.Println("waiting for message from players")
-			_, message, err := player.Socket.ReadMessage()
-			log.Println("received message from players:", string(message))
-			if err != nil {
-				log.Fatal(err)
-			}
-			switch string(message) {
+			switch player.Command {
 			case "LIGHT":
+				player.Command = "NONE"
 				if player.Stamina >= LIGHT_ATTACK_COST {
 					player.SetState("light attack", LIGHT_ATTACK_SPD)
 					player.Stamina -= LIGHT_ATTACK_COST
@@ -89,5 +86,15 @@ func battle(player1socket, player2socket *websocket.Conn) {
 			}
 		}
 	}
-	log.Println("escaped mainloop")
+}
+
+func input(player *Player) {
+	for true {
+		command := <- player.InputChan
+//		if err != nil {
+//			log.Fatal(err)
+//		}
+		log.Println("input() printing player command:",command)
+		player.Command=command.Command
+	}
 }

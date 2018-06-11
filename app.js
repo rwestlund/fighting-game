@@ -71,7 +71,6 @@ function enter (event) {
 function battle () {
   document.getElementById('chat').style.display="none"
   document.getElementById('battleUI').style.display="block"
-  console.log(document.getElementById('battleUI').style.display)
   // should probably play a sound to notify the user when they get matched
   var input = "NONE"
   document.addEventListener('keydown', function(e) {
@@ -103,7 +102,10 @@ function battle () {
   };
   function sendUpdate () {
     console.log("sending input to server:"+input)
-    socket.send(input)
+    socket.send(JSON.stringify({
+    "username":username,
+    "message":"",
+    "command":input}))
   }
-  setInterval(sendUpdate,1000)
+  setInterval(sendUpdate,100)
 }
