@@ -15,11 +15,8 @@ main {
     overflow-y: scroll;
 }
 
-#battleUI {
-    display: none;
-}
-
 #self {
+    position: relative;
     float:left;
     width:50%;
 }
@@ -29,8 +26,12 @@ main {
     width:50%;
 }
 
+#battleUI {
+    display: none;
+}
+
 #ownLifeBar {
-    width: 48%;
+    width: 98%;
     background-color: grey;
     float:left;
 }
@@ -41,7 +42,7 @@ main {
     float:left;
 }
 #enemyLifeBar {
-    width: 48%;
+    width: 98%;
     background-color: grey;
     float:right;
 }
@@ -53,7 +54,7 @@ main {
 }
 
 #ownStamBar {
-    width: 48%;
+    width: 98%;
     background-color: grey;
     float:left;
 }
@@ -64,7 +65,7 @@ main {
     float:left;
 }
 #enemyStamBar {
-    width: 48%;
+    width: 98%;
     background-color: grey;
     float:right;
 }
