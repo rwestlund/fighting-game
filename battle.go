@@ -1,12 +1,16 @@
 package main
 
 import (
-	//	"github.com/gorilla/websocket"
 	"log"
 	"time"
-	//	"net/http"
 )
 
+// These two channels are the same as the two from the corresponding User struct in server.go.
+// The Command field is the current input from the player (kept up to date by the concurrently running input func for the player).
+// The state field keeps track of what the player is doing. It has values like "standing", "blocking", "light attack", etc.
+// The StateDuration field shows how much longer the player will remain in their current state.
+// The BlockDuration field tells how long has the player has been blocking for. This is used to tell whether the player blocked reactively to counter an attack as opposed to just holding down block before it started.
+// The Finished field shows what state the player just exited. It's used to know when an attack is supposed to land.
 type Player struct {
 	InputChan     chan Message
 	UpdateChan    chan Update
@@ -19,12 +23,13 @@ type Player struct {
 	Finished      string
 }
 
+// This is called every mainloop cycle, and does two things: regenerate stamina, and make progress toward exiting the current state.
 func (p *Player) PassTime(amount int) {
-	p.StateDuration -= amount
 	p.Stamina += 0.1
 	if p.Stamina > 100 {
 		p.Stamina = 100
 	}
+	p.StateDuration -= amount
 	if p.StateDuration <= 0 {
 		p.StateDuration = 0
 		p.Finished = p.State
@@ -37,6 +42,7 @@ func (p *Player) SetState(state string, duration int) {
 	p.StateDuration = duration
 }
 
+// One of these is sent back to each player every mainloop cycle. Note that the players don't know which player they are internally - it doesn't matter.
 type Update struct {
 	OwnLife       int     `json:"ownLife"`
 	OwnStam       float32 `json:"ownStam"`
@@ -87,6 +93,7 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 	}
 }
 
+// This function listens continuously for an input from the player and passes it through to the player's Command field, where the mainloop can see it.
 func input(player *Player) {
 	for true {
 		command := <-player.InputChan

@@ -7,12 +7,14 @@ import (
 	"sync"
 )
 
+// Messages are the JSON objects used for most communication between clients and the server. In the case of a chat message, Content will be used and Command will be left blank. In the context of a special message, Command will be used and Content will be left blank.
 type Message struct {
 	Username string `json:"username"`
 	Content  string `json:"message"`
 	Command  string `json:"command"`
 }
 
+// The two channels in this struct are for the player sending commands to the server and for the server sending gamestate updates to the player's computer.
 type User struct {
 	Ready            bool
 	InGame           bool
@@ -24,7 +26,9 @@ type User struct {
 var users = make(map[*websocket.Conn]*User)
 var chatchan = make(chan Message)
 var upgrader = websocket.Upgrader{}
-var global_mutex = sync.Mutex{}
+
+// The global mutex protects the users map from concurrency issues.
+var globalMutex = sync.Mutex{}
 
 func main() {
 	fs := http.FileServer(http.Dir("./"))
@@ -39,11 +43,12 @@ func main() {
 	}
 }
 
+// This function listens for new chat messages and writes them out to each connected user.
 func globalChat() {
 	for {
 		msg := <-chatchan
-		global_mutex.Lock()
-		for socket, _ := range users {
+		globalMutex.Lock()
+		for socket := range users {
 			err := socket.WriteJSON(msg)
 			if err != nil {
 				log.Printf("error: %v", err)
@@ -51,14 +56,15 @@ func globalChat() {
 				delete(users, socket)
 			}
 		}
-		global_mutex.Unlock()
+		globalMutex.Unlock()
 
 	}
 }
 
+// This function is called whenever a new player readies for battle. If at least two people are ready for battle, it matches two of them.
 func matchmaker() {
 	readyUsers := make([]*websocket.Conn, 0)
-	global_mutex.Lock()
+	globalMutex.Lock()
 	for socket, user := range users {
 		user.Mutex.Lock()
 		if user.Ready == true {
@@ -82,9 +88,10 @@ func matchmaker() {
 		users[readyUsers[0]].Mutex.Unlock()
 		users[readyUsers[1]].Mutex.Unlock()
 	}
-	global_mutex.Unlock()
+	globalMutex.Unlock()
 }
 
+// Each time a new user connects, a goroutine running this function is created. It keeps track of the connection and sends chat data or game data back and forth.
 func handleConnection(w http.ResponseWriter, r *http.Request) {
 	// Upgrade initial GET request to a websocket
 	socket, err := upgrader.Upgrade(w, r, nil)
@@ -92,19 +99,19 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 	defer socket.Close()
-	global_mutex.Lock()
+	globalMutex.Lock()
 	newUser := User{false, false, make(chan Message), make(chan Update), sync.Mutex{}}
 	users[socket] = &newUser
-	global_mutex.Unlock()
+	globalMutex.Unlock()
 	var msg Message
 	for {
 		// Read the next message from chat
 		err := socket.ReadJSON(&msg)
 		if err != nil {
 			log.Printf("error: %v", err)
-			global_mutex.Lock()
+			globalMutex.Lock()
 			delete(users, socket)
-			global_mutex.Unlock()
+			globalMutex.Unlock()
 			break
 		}
 		newUser.Mutex.Lock()
@@ -132,10 +139,10 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// This goroutine listens for gamestate updates from battle.go and forwards them to the player.
 func forwardUpdates(socket *websocket.Conn, channel chan Update) {
 	for true {
 		update := <-channel
-		//		log.Println("forwardUpdates here, got an update:",update)
 		socket.WriteJSON(update)
 	}
 }
