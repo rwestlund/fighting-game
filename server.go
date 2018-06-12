@@ -68,13 +68,10 @@ func matchmaker() {
 	}
 	log.Println("ready users:", len(readyUsers))
 	if len(readyUsers) >= 2 {
-		log.Println("test")
 		users[readyUsers[0]].Mutex.Lock()
-		log.Println("test2")
 		users[readyUsers[0]].Ready = false
 		users[readyUsers[0]].InGame = true
 		users[readyUsers[1]].Mutex.Lock()
-		log.Println("test3")
 		users[readyUsers[1]].Ready = false
 		users[readyUsers[1]].InGame = true
 		readyUsers[0].WriteJSON(Message{Username: "", Content: "", Command: "START GAME"})
@@ -82,7 +79,6 @@ func matchmaker() {
 		go battle(users[readyUsers[0]].BattleInputChan, users[readyUsers[1]].BattleInputChan, users[readyUsers[0]].BattleUpdateChan, users[readyUsers[1]].BattleUpdateChan)
 		go forwardUpdates(readyUsers[0], users[readyUsers[0]].BattleUpdateChan)
 		go forwardUpdates(readyUsers[1], users[readyUsers[1]].BattleUpdateChan)
-		log.Println("test4")
 		users[readyUsers[0]].Mutex.Unlock()
 		users[readyUsers[1]].Mutex.Unlock()
 	}
@@ -102,7 +98,6 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 	global_mutex.Unlock()
 	var msg Message
 	for {
-		newUser.Mutex.Lock()
 		// Read the next message from chat
 		err := socket.ReadJSON(&msg)
 		if err != nil {
@@ -112,7 +107,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 			global_mutex.Unlock()
 			break
 		}
-		log.Println("got a message from player:", msg)
+		newUser.Mutex.Lock()
 		if newUser.InGame {
 			newUser.BattleInputChan <- msg
 			newUser.Mutex.Unlock()
