@@ -14,11 +14,11 @@ type Message struct {
 }
 
 type User struct {
-	Ready  bool
-	InGame bool
-	BattleInputChan chan Message
+	Ready            bool
+	InGame           bool
+	BattleInputChan  chan Message
 	BattleUpdateChan chan Update
-	Mutex  sync.Mutex
+	Mutex            sync.Mutex
 }
 
 var users = make(map[*websocket.Conn]*User)
@@ -66,7 +66,7 @@ func matchmaker() {
 		}
 		user.Mutex.Unlock()
 	}
-	log.Println("ready users:",len(readyUsers))
+	log.Println("ready users:", len(readyUsers))
 	if len(readyUsers) >= 2 {
 		log.Println("test")
 		users[readyUsers[0]].Mutex.Lock()
@@ -80,8 +80,8 @@ func matchmaker() {
 		readyUsers[0].WriteJSON(Message{Username: "", Content: "", Command: "START GAME"})
 		readyUsers[1].WriteJSON(Message{Username: "", Content: "", Command: "START GAME"})
 		go battle(users[readyUsers[0]].BattleInputChan, users[readyUsers[1]].BattleInputChan, users[readyUsers[0]].BattleUpdateChan, users[readyUsers[1]].BattleUpdateChan)
-		go forwardUpdates(readyUsers[0],users[readyUsers[0]].BattleUpdateChan)
-		go forwardUpdates(readyUsers[1],users[readyUsers[1]].BattleUpdateChan)
+		go forwardUpdates(readyUsers[0], users[readyUsers[0]].BattleUpdateChan)
+		go forwardUpdates(readyUsers[1], users[readyUsers[1]].BattleUpdateChan)
 		log.Println("test4")
 		users[readyUsers[0]].Mutex.Unlock()
 		users[readyUsers[1]].Mutex.Unlock()
@@ -112,7 +112,7 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 			global_mutex.Unlock()
 			break
 		}
-		log.Println("got a message from player:",msg)
+		log.Println("got a message from player:", msg)
 		if newUser.InGame {
 			newUser.BattleInputChan <- msg
 			newUser.Mutex.Unlock()
@@ -139,8 +139,8 @@ func handleConnection(w http.ResponseWriter, r *http.Request) {
 
 func forwardUpdates(socket *websocket.Conn, channel chan Update) {
 	for true {
-		update := <- channel
-//		log.Println("forwardUpdates here, got an update:",update)
+		update := <-channel
+		//		log.Println("forwardUpdates here, got an update:",update)
 		socket.WriteJSON(update)
 	}
 }

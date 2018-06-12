@@ -1,7 +1,7 @@
 package main
 
 import (
-//	"github.com/gorilla/websocket"
+	//	"github.com/gorilla/websocket"
 	"log"
 	"time"
 	//	"net/http"
@@ -10,7 +10,7 @@ import (
 type Player struct {
 	InputChan     chan Message
 	UpdateChan    chan Update
-	Command	      string
+	Command       string
 	Life          int
 	Stamina       float32
 	State         string
@@ -52,8 +52,8 @@ type Update struct {
 
 func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
 	log.Println("in battle")
-//	global_mutex.Lock()
-//	defer global_mutex.Unlock()
+	//	global_mutex.Lock()
+	//	defer global_mutex.Unlock()
 	// constants
 	const LIGHT_ATTACK_DMG int = 3
 	const LIGHT_ATTACK_COST float32 = 5.0
@@ -89,8 +89,8 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 
 func input(player *Player) {
 	for true {
-		command := <- player.InputChan
-		log.Println("input() printing player command:",command)
-		player.Command=command.Command
+		command := <-player.InputChan
+		log.Println("input() printing player command:", command)
+		player.Command = command.Command
 	}
 }
