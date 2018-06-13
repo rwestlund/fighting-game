@@ -23,20 +23,19 @@ type User struct {
 	Mutex            sync.Mutex
 }
 
-var users = make(map[*websocket.Conn]*User)
-var chatchan = make(chan Message)
-var upgrader = websocket.Upgrader{}
-
-// The global mutex protects the users map from concurrency issues.
-var globalMutex = sync.Mutex{}
-
 func main() {
+	var users = make(map[*websocket.Conn]*User)
+	var chatchan = make(chan Message)
+	// The global mutex protects the users map from concurrency issues.
+	var globalMutex = sync.Mutex{}
+
 	fs := http.FileServer(http.Dir("./"))
 	http.Handle("/", fs)
-	http.HandleFunc("/ws", handleConnection)
+	// handleConnection actually returns an anonymous function that handles connections.
+	http.HandleFunc("/ws", handleConnection(users, chatchan, globalMutex))
 	port := ":8000"
 	log.Println("http server starting on port", port)
-	go globalChat()
+	go globalChat(users, chatchan, globalMutex)
 	err := http.ListenAndServe(port, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
@@ -44,7 +43,7 @@ func main() {
 }
 
 // This function listens for new chat messages and writes them out to each connected user.
-func globalChat() {
+func globalChat(users map[*websocket.Conn]*User, chatchan chan Message, globalMutex sync.Mutex) {
 	for {
 		msg := <-chatchan
 		globalMutex.Lock()
@@ -62,7 +61,7 @@ func globalChat() {
 }
 
 // This function is called whenever a new player readies for battle. If at least two people are ready for battle, it matches two of them.
-func matchmaker() {
+func matchmaker(users map[*websocket.Conn]*User, globalMutex sync.Mutex) {
 	readyUsers := make([]*websocket.Conn, 0)
 	globalMutex.Lock()
 	for socket, user := range users {
@@ -91,51 +90,54 @@ func matchmaker() {
 	globalMutex.Unlock()
 }
 
-// Each time a new user connects, a goroutine running this function is created. It keeps track of the connection and sends chat data or game data back and forth.
-func handleConnection(w http.ResponseWriter, r *http.Request) {
-	// Upgrade initial GET request to a websocket
-	socket, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer socket.Close()
-	globalMutex.Lock()
-	newUser := User{false, false, make(chan Message), make(chan Update), sync.Mutex{}}
-	users[socket] = &newUser
-	globalMutex.Unlock()
-	var msg Message
-	for {
-		// Read the next message from chat
-		err := socket.ReadJSON(&msg)
+// Each time a new user connects, a goroutine running the function that this one returns is created. It keeps track of the connection and sends chat data or game data back and forth.
+func handleConnection(users map[*websocket.Conn]*User, chatchan chan Message, globalMutex sync.Mutex) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Upgrade initial GET request to a websocket
+		var upgrader = websocket.Upgrader{}
+		socket, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Printf("error: %v", err)
-			globalMutex.Lock()
-			delete(users, socket)
-			globalMutex.Unlock()
-			break
+			log.Fatal(err)
 		}
-		newUser.Mutex.Lock()
-		if newUser.InGame {
-			newUser.BattleInputChan <- msg
+		defer socket.Close()
+		globalMutex.Lock()
+		newUser := User{false, false, make(chan Message), make(chan Update), sync.Mutex{}}
+		users[socket] = &newUser
+		globalMutex.Unlock()
+		var msg Message
+		for {
+			// Read the next message from chat
+			err := socket.ReadJSON(&msg)
+			if err != nil {
+				log.Printf("error: %v", err)
+				globalMutex.Lock()
+				delete(users, socket)
+				globalMutex.Unlock()
+				break
+			}
+			newUser.Mutex.Lock()
+			if newUser.InGame {
+				newUser.BattleInputChan <- msg
+				newUser.Mutex.Unlock()
+				continue
+			}
 			newUser.Mutex.Unlock()
-			continue
-		}
-		newUser.Mutex.Unlock()
 
-		if msg.Command == "READY" {
-			newUser.Mutex.Lock()
-			newUser.Ready = true
-			newUser.Mutex.Unlock()
-			matchmaker()
-			continue
+			if msg.Command == "READY" {
+				newUser.Mutex.Lock()
+				newUser.Ready = true
+				newUser.Mutex.Unlock()
+				matchmaker(users, globalMutex)
+				continue
+			}
+			if msg.Command == "UNREADY" {
+				newUser.Mutex.Lock()
+				newUser.Ready = false
+				newUser.Mutex.Unlock()
+				continue
+			}
+			chatchan <- msg
 		}
-		if msg.Command == "UNREADY" {
-			newUser.Mutex.Lock()
-			newUser.Ready = false
-			newUser.Mutex.Unlock()
-			continue
-		}
-		chatchan <- msg
 	}
 }
 
