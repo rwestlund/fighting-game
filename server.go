@@ -24,9 +24,8 @@ type User struct {
 // ConnInfo models the communication channel between a user's client and the
 // server.
 type ConnInfo struct {
-	Inbound         chan Message
-	Outbound        chan Message
-	OutboundUpdates chan Update
+	Inbound  chan Message
+	Outbound chan interface{}
 }
 
 // MessageInfo wraps a Message with a reference to the User that sent it.
@@ -130,8 +129,8 @@ func matchmaker(clients map[*ConnInfo]*User) {
 		readyUsers[0].Outbound <- Message{Username: "", Content: "", Command: "START GAME"}
 		readyUsers[1].Outbound <- Message{Username: "", Content: "", Command: "START GAME"}
 		go battle(clients[readyUsers[0]].BattleInputChan, clients[readyUsers[1]].BattleInputChan, clients[readyUsers[0]].BattleUpdateChan, clients[readyUsers[1]].BattleUpdateChan)
-		go forwardUpdates(readyUsers[0].OutboundUpdates, clients[readyUsers[0]].BattleUpdateChan)
-		go forwardUpdates(readyUsers[1].OutboundUpdates, clients[readyUsers[1]].BattleUpdateChan)
+		go forwardUpdates(readyUsers[0].Outbound, clients[readyUsers[0]].BattleUpdateChan)
+		go forwardUpdates(readyUsers[1].Outbound, clients[readyUsers[1]].BattleUpdateChan)
 	}
 }
 
@@ -147,9 +146,8 @@ func handleConnection(newClients chan<- ConnInfo) http.Handler {
 		defer socket.Close()
 		// Send the connection info.
 		var conn = ConnInfo{
-			Inbound:         make(chan Message),
-			Outbound:        make(chan Message),
-			OutboundUpdates: make(chan Update),
+			Inbound:  make(chan Message),
+			Outbound: make(chan interface{}),
 		}
 		// This will let the consumer know that it's no longer active.
 		defer close(conn.Inbound)
@@ -163,12 +161,6 @@ func handleConnection(newClients chan<- ConnInfo) http.Handler {
 				var err = socket.WriteJSON(msg)
 				log.Println(err)
 				//TODO remove them or just drop the message?
-			}
-		}()
-		go func() {
-			for msg := range conn.OutboundUpdates {
-				var err = socket.WriteJSON(msg)
-				log.Println(err)
 			}
 		}()
 
@@ -187,7 +179,7 @@ func handleConnection(newClients chan<- ConnInfo) http.Handler {
 }
 
 // This goroutine listens for gamestate updates from battle.go and forwards them to the player.
-func forwardUpdates(dest chan Update, src chan Update) {
+func forwardUpdates(dest chan interface{}, src chan Update) {
 	log.Println("forwardUpdates() started")
 	for update := range src {
 		log.Println("forwardUpdates got update:", update)
