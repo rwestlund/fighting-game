@@ -58,8 +58,6 @@ type Update struct {
 
 func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
 	log.Println("in battle")
-	//	global_mutex.Lock()
-	//	defer global_mutex.Unlock()
 	// constants
 	const LIGHT_ATTACK_DMG int = 3
 	const LIGHT_ATTACK_COST float32 = 5.0
@@ -72,9 +70,11 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 	go input(&player2)
 
 	for player1.Life > 0 && player2.Life > 0 {
-		time.Sleep(1000 * time.Millisecond)
+		log.Println("mainloop")
+		time.Sleep(100 * time.Millisecond)
 		player1.UpdateChan <- Update{OwnLife: player1.Life, OwnStam: player1.Stamina, OwnState: player1.State, OwnStateDur: player1.StateDuration, OwnBlockDur: player1.BlockDuration, EnemyLife: player2.Life, EnemyStam: player2.Stamina, EnemyState: player2.State, EnemyStateDur: player2.StateDuration, EnemyBlockDur: player2.BlockDuration}
 		player2.UpdateChan <- Update{OwnLife: player2.Life, OwnStam: player2.Stamina, OwnState: player2.State, OwnStateDur: player2.StateDuration, OwnBlockDur: player2.BlockDuration, EnemyLife: player1.Life, EnemyStam: player1.Stamina, EnemyState: player1.State, EnemyStateDur: player1.StateDuration, EnemyBlockDur: player1.BlockDuration}
+		log.Println("INFO", player1.Stamina)
 		// Do the backend stuff.
 		for _, player := range players {
 			player.PassTime(1)
@@ -91,6 +91,7 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 			}
 		}
 	}
+
 }
 
 // This function listens continuously for an input from the player and passes it through to the player's Command field, where the mainloop can see it.
@@ -98,6 +99,6 @@ func input(player *Player) {
 	for true {
 		command := <-player.InputChan
 		log.Println("input() printing player command:", command)
-		player.Command = command.Command
+		player.Command = command.Content
 	}
 }

@@ -104,8 +104,8 @@ function battle () {
     console.log("sending input to server:"+input)
     socket.send(JSON.stringify({
     "username":username,
-    "message":"",
-    "command":input}))
+    "message":input,
+    "command":""}))
   }
   setInterval(sendUpdate,100)
 }
