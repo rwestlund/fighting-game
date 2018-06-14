@@ -12,6 +12,7 @@ import (
 // The BlockDuration field tells how long has the player has been blocking for. This is used to tell whether the player blocked reactively to counter an attack as opposed to just holding down block before it started.
 // The Finished field shows what state the player just exited. It's used to know when an attack is supposed to land.
 type Player struct {
+	Name          string
 	InputChan     chan Message
 	UpdateChan    chan Update
 	Command       string
@@ -65,38 +66,55 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 	log.Println("in battle")
 	// constants
 	const LIGHT_ATTACK_DMG int = 3
+	const LIGHT_ATTACK_SPD int = 50
 	const LIGHT_ATTACK_COST float32 = 5.0
 	const LIGHT_ATTACK_BLK_COST float32 = 5.0
-	const LIGHT_ATTACK_SPD int = 50
 	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}}
-	go input(players[0])
-	go input(players[1])
-
+	//	inputChan := make(chan Message)
+	timerChan := make(chan bool)
+	//	go input(players[0],inputChan)
+	//	go input(players[1],inputChan)
+	go clock(100, timerChan)
 	for players[0].Life > 0 && players[1].Life > 0 {
 		log.Println("mainloop")
-		time.Sleep(100 * time.Millisecond)
-		players[0].UpdateChan <- Update{Self: players[0].Status(), Enemy: players[1].Status()}
-		players[1].UpdateChan <- Update{Self: players[1].Status(), Enemy: players[0].Status()}
-		// Do the backend stuff.
-		for _, player := range players {
-			player.PassTime(1)
-			// Get input from the players.
-			switch player.Command {
-			case "LIGHT":
-				player.Command = "NONE"
-				if player.Stamina >= LIGHT_ATTACK_COST {
-					player.SetState("light attack", LIGHT_ATTACK_SPD)
-					player.Stamina -= LIGHT_ATTACK_COST
+		for true {
+			select {
+			// Each mainloop cycle:
+			case <-timerChan:
+				players[0].UpdateChan <- Update{Self: players[0].Status(), Enemy: players[1].Status()}
+				players[1].UpdateChan <- Update{Self: players[1].Status(), Enemy: players[0].Status()}
+				for _, player := range players {
+					player.PassTime(1)
+					switch player.Command {
+					case "LIGHT":
+						player.Command = "NONE"
+						if player.Stamina >= LIGHT_ATTACK_COST {
+							player.SetState("light attack", LIGHT_ATTACK_SPD)
+							player.Stamina -= LIGHT_ATTACK_COST
+						}
+					}
 				}
+			case input := <-players[0].InputChan:
+				players[0].Command = input.Content
+			case input := <-players[1].InputChan:
+				players[1].Command = input.Content
 			}
 		}
 	}
+}
 
+func clock(speed int, channel chan bool) {
+	timer := time.NewTimer(100 * time.Millisecond)
+	for range timer.C {
+		timer.Reset(100 * time.Millisecond)
+		channel <- true
+	}
 }
 
 // This function listens continuously for an input from the player and passes it through to the player's Command field, where the mainloop can see it.
-func input(player *Player) {
-	for command := range player.InputChan {
-		player.Command = command.Content
-	}
-}
+//func input(player *Player, channel chan Message) {
+//	for command := range player.InputChan {
+//		channel <- command
+//		player.Command = command.Content
+//	}
+//}
