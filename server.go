@@ -88,9 +88,7 @@ func dispatcher(newClients <-chan ConnInfo) {
 		// When a Message is received from anyone.
 		case msg := <-messages:
 			// If they're in a game, forward all messages there.
-			log.Println("got a message:", msg)
 			if msg.User.InGame {
-				log.Println("forwarding it to the battle input channel")
 				msg.User.BattleInputChan <- msg.Message
 
 				// Handle lobby command messages.
@@ -120,7 +118,6 @@ func matchmaker(clients map[*ConnInfo]*User) {
 			readyUsers = append(readyUsers, socket)
 		}
 	}
-	log.Println("ready clients:", len(readyUsers))
 	if len(readyUsers) >= 2 {
 		clients[readyUsers[0]].Ready = false
 		clients[readyUsers[0]].InGame = true
@@ -159,7 +156,9 @@ func handleConnection(newClients chan<- ConnInfo) http.Handler {
 		go func() {
 			for msg := range conn.Outbound {
 				var err = socket.WriteJSON(msg)
-				log.Println(err)
+				if err != nil {
+					log.Println(err)
+				}
 				//TODO remove them or just drop the message?
 			}
 		}()
@@ -180,9 +179,7 @@ func handleConnection(newClients chan<- ConnInfo) http.Handler {
 
 // This goroutine listens for gamestate updates from battle.go and forwards them to the player.
 func forwardUpdates(dest chan interface{}, src chan Update) {
-	log.Println("forwardUpdates() started")
 	for update := range src {
-		log.Println("forwardUpdates got update:", update)
 		dest <- update
 	}
 }

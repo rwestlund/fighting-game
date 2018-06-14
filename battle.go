@@ -20,7 +20,6 @@ type Player struct {
 	Stamina       float32
 	State         string
 	StateDuration int
-	BlockDuration int
 	Finished      string
 }
 
@@ -44,14 +43,15 @@ func (p *Player) PassTime(amount int) {
 		p.Stamina = 100
 	}
 	p.StateDuration -= amount
-	if p.StateDuration <= 0 {
-		p.StateDuration = 0
+	if p.StateDuration <= 0 && !TERMINAL_STATES[p.State] {
+		log.Println("state", p.State, "timed out")
 		p.Finished = p.State
 		p.State = "standing"
 	}
 }
 
 func (p *Player) SetState(state string, duration int) {
+	log.Println("setting state", state)
 	p.State = state
 	p.StateDuration = duration
 }
@@ -62,59 +62,93 @@ type Update struct {
 	Enemy PlayerStatus `json:"enemy"`
 }
 
+// constants
+const LIGHT_ATK_DMG int = 3
+const LIGHT_ATK_SPD int = 50
+const LIGHT_ATK_COST float32 = 10.0
+const LIGHT_ATK_BLK_COST float32 = 8.0
+const LIGHT_ATK_CNTR_SPD int = 30
+const LIGHT_ATK_CNTR_DMG int = 3
+const LIGHT_ATK_CNTR_SAVE_COST float32 = 10.0
+
+//INTERRUPTABLE_STATES := map[string]bool{"standing":true,"blocking":true}
+//TERMINAL_STATES := map[string]bool{"standing":true,"blocking":true,"countered":true}
+var INTERRUPTABLE_STATES map[string]bool = map[string]bool{"standing": true, "blocking": true}
+var TERMINAL_STATES map[string]bool = map[string]bool{"standing": true, "blocking": true, "countered": true}
+
 func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
 	log.Println("in battle")
-	// constants
-	const LIGHT_ATTACK_DMG int = 3
-	const LIGHT_ATTACK_SPD int = 50
-	const LIGHT_ATTACK_COST float32 = 5.0
-	const LIGHT_ATTACK_BLK_COST float32 = 5.0
-	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}}
-	//	inputChan := make(chan Message)
+	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}}
 	timerChan := make(chan bool)
-	//	go input(players[0],inputChan)
-	//	go input(players[1],inputChan)
-	go clock(100, timerChan)
+	go clock(timerChan)
 	for players[0].Life > 0 && players[1].Life > 0 {
-		log.Println("mainloop")
-		for true {
-			select {
-			// Each mainloop cycle:
-			case <-timerChan:
-				players[0].UpdateChan <- Update{Self: players[0].Status(), Enemy: players[1].Status()}
-				players[1].UpdateChan <- Update{Self: players[1].Status(), Enemy: players[0].Status()}
-				for _, player := range players {
-					player.PassTime(1)
-					switch player.Command {
-					case "LIGHT":
-						player.Command = "NONE"
-						if player.Stamina >= LIGHT_ATTACK_COST {
-							player.SetState("light attack", LIGHT_ATTACK_SPD)
-							player.Stamina -= LIGHT_ATTACK_COST
+		select {
+		// Each mainloop cycle:
+		case <-timerChan:
+			players[0].UpdateChan <- Update{Self: players[0].Status(), Enemy: players[1].Status()}
+			players[1].UpdateChan <- Update{Self: players[1].Status(), Enemy: players[0].Status()}
+			for p, player := range players {
+				player.PassTime(1)
+				// Set the 'enemy' var to the other player, we'll need it later.
+				enemy := players[1]
+				if p == 1 {
+					enemy = players[0]
+				}
+				switch player.Finished {
+				case "light attack":
+					// If they were blocking and they have enough stamina to block a light attack...
+					if enemy.State == "blocking" && enemy.Stamina > LIGHT_ATK_BLK_COST {
+						enemy.Stamina -= LIGHT_ATK_BLK_COST
+						// If they haven't been blocking as long as the attack was in progress; that is, if they blocked reactively...
+						if -enemy.StateDuration < LIGHT_ATK_SPD {
+							// The player is counterattacked. They are placed in a stunned state that they must press a button to escape before the counterattack lands.
+							player.SetState("countered", -1)
+							enemy.SetState("counterattack", LIGHT_ATK_CNTR_SPD)
 						}
+					} else {
+						// If the enemy wasn't blocking, they just take damage.
+						enemy.Life -= LIGHT_ATK_DMG
+					}
+				case "counterattack":
+					// No conditions here because if you dodge the counter attack it puts the enemy out of the counterattacking state.
+					enemy.Life -= LIGHT_ATK_CNTR_DMG
+				}
+				player.Finished = ""
+				switch player.Command {
+				case "NONE":
+					if player.State == "blocking" {
+						player.SetState("standing", 0)
+					}
+				case "BLOCK":
+					if INTERRUPTABLE_STATES[player.State] && player.State != "blocking" {
+						player.SetState("blocking", 0)
+					}
+				case "LIGHT":
+					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= LIGHT_ATK_COST {
+						player.SetState("light attack", LIGHT_ATK_SPD)
+						player.Stamina -= LIGHT_ATK_COST
 					}
 				}
-			case input := <-players[0].InputChan:
-				players[0].Command = input.Content
-			case input := <-players[1].InputChan:
-				players[1].Command = input.Content
+				if player.Command != "BLOCK" {
+					player.Command = "NONE"
+				}
+			}
+		case input := <-players[0].InputChan:
+			players[0].Command = input.Content
+			if input.Content == "LIGHT" {
+			}
+		case input := <-players[1].InputChan:
+			players[1].Command = input.Content
+			if input.Content == "LIGHT" {
 			}
 		}
 	}
 }
 
-func clock(speed int, channel chan bool) {
-	timer := time.NewTimer(100 * time.Millisecond)
+func clock(channel chan bool) {
+	timer := time.NewTimer(50 * time.Millisecond)
 	for range timer.C {
-		timer.Reset(100 * time.Millisecond)
+		timer.Reset(50 * time.Millisecond)
 		channel <- true
 	}
 }
-
-// This function listens continuously for an input from the player and passes it through to the player's Command field, where the mainloop can see it.
-//func input(player *Player, channel chan Message) {
-//	for command := range player.InputChan {
-//		channel <- command
-//		player.Command = command.Content
-//	}
-//}

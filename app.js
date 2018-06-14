@@ -73,6 +73,12 @@ function battle () {
   document.getElementById('battleUI').style.display="block"
   // should probably play a sound to notify the user when they get matched
   var input = "NONE"
+  document.addEventListener('keyup', function(e) {
+    if (e.keyCode == 32) {
+      input = "NONE"
+      }
+    return
+  });
   document.addEventListener('keydown', function(e) {
     if (e.keyCode == 32) {
       input = "BLOCK"
@@ -92,20 +98,18 @@ function battle () {
     }
   });
   socket.onmessage = function(e) {
-    console.log("update received:")
     var update = JSON.parse(e.data)
-    console.log(update)
     document.getElementById('ownLife').style.width=update.self.life.toString()+"%"
     document.getElementById('ownStam').style.width=update.self.stamina.toString()+"%"
     document.getElementById('enemyLife').style.width=update.enemy.life.toString()+"%"
     document.getElementById('enemyStam').style.width=update.enemy.stamina.toString()+"%"
   };
   function sendUpdate () {
-    console.log("sending input to server:"+input)
     socket.send(JSON.stringify({
     "username":username,
     "message":input,
     "command":""}))
+    if (input!="BLOCK"){input = "NONE"}
   }
   setInterval(sendUpdate,100)
 }
