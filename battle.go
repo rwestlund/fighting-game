@@ -84,12 +84,11 @@ var ATTACK_STATES map[string]bool = map[string]bool{"light attack": true, "heavy
 func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
 	log.Println("in battle")
 	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}}
-	timerChan := make(chan bool)
-	go clock(timerChan)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	for players[0].Life > 0 && players[1].Life > 0 {
 		select {
 		// Each mainloop cycle:
-		case <-timerChan:
+		case <-ticker.C:
 			players[0].UpdateChan <- Update{Self: players[0].Status(), Enemy: players[1].Status()}
 			players[1].UpdateChan <- Update{Self: players[1].Status(), Enemy: players[0].Status()}
 			for p, player := range players {
@@ -179,13 +178,5 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 		case input := <-players[1].InputChan:
 			players[1].Command = input.Content
 		}
-	}
-}
-
-func clock(channel chan bool) {
-	timer := time.NewTimer(10 * time.Millisecond)
-	for range timer.C {
-		timer.Reset(10 * time.Millisecond)
-		channel <- true
 	}
 }
