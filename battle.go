@@ -96,7 +96,7 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 
 // This function listens continuously for an input from the player and passes it through to the player's Command field, where the mainloop can see it.
 func input(player *Player) {
-	for true {
-		player.Command = (<-player.InputChan).Content
+	for command := range player.InputChan {
+		player.Command = command.Content
 	}
 }
