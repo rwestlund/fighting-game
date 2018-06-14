@@ -37,13 +37,12 @@ func (p *Player) Status() PlayerStatus {
 
 // This is called every mainloop cycle, and does two things: regenerate stamina, and make progress toward exiting the current state.
 func (p *Player) PassTime(amount int) {
-//	p.Stamina += 0.1
+	p.Stamina += 0.1
 	if p.Stamina > 100 {
 		p.Stamina = 100
 	}
 	p.StateDuration -= amount
 	if p.StateDuration <= 0 && !TERMINAL_STATES[p.State] {
-		log.Println("state", p.State, "timed out")
 		p.Finished = p.State
 		p.State = "standing"
 	}
@@ -73,11 +72,14 @@ const HEAVY_ATK_SPD int = 80
 const HEAVY_ATK_COST float32 = 15.0
 const HEAVY_ATK_BLK_COST float32 = 20.0
 const HEAVY_ATK_BLKED_DMG int = 2
+const DODGE_COST float32 = 15.0
+const DODGE_WINDOW int = 30
 
 //INTERRUPTABLE_STATES := map[string]bool{"standing":true,"blocking":true}
 //TERMINAL_STATES := map[string]bool{"standing":true,"blocking":true,"countered":true}
 var INTERRUPTABLE_STATES map[string]bool = map[string]bool{"standing": true, "blocking": true}
 var TERMINAL_STATES map[string]bool = map[string]bool{"standing": true, "blocking": true, "countered": true}
+var ATTACK_STATES map[string]bool = map[string]bool{"light attack": true, "heavy attack": true}
 
 func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
 	log.Println("in battle")
@@ -124,14 +126,14 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 				case "heavy attack":
 					if enemy.State == "blocking" {
 						if enemy.Stamina >= HEAVY_ATK_BLK_COST {
-							enemy.Stamina-=HEAVY_ATK_BLK_COST
-							enemy.Life-=HEAVY_ATK_BLKED_DMG
+							enemy.Stamina -= HEAVY_ATK_BLK_COST
+							enemy.Life -= HEAVY_ATK_BLKED_DMG
 						} else {
-							enemy.Stamina=0.0
-							enemy.Life-=HEAVY_ATK_DMG
+							enemy.Stamina = 0.0
+							enemy.Life -= HEAVY_ATK_DMG
 						}
 					} else {
-							enemy.Life-=HEAVY_ATK_DMG
+						enemy.Life -= HEAVY_ATK_DMG
 					}
 				}
 				player.Finished = ""
@@ -144,10 +146,16 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 					if INTERRUPTABLE_STATES[player.State] && player.State != "blocking" {
 						player.SetState("blocking", 0)
 					}
+				case "DODGE":
+					// Dodges take time, unlike blocks which can be started at the last possible second.
+					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= DODGE_COST && enemy.StateDuration > DODGE_WINDOW {
+						player.Stamina -= DODGE_COST
+						if ATTACK_STATES[enemy.State] {
+							enemy.SetState("standing", 0)
+						}
+					}
 				case "SAVE":
-					log.Println("got save command")
 					if player.State == "countered" {
-						log.Println("saving")
 						player.SetState("standing", 0)
 						enemy.SetState("standing", 0)
 					}
@@ -167,14 +175,8 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 				}
 			}
 		case input := <-players[0].InputChan:
-			if input.Content != "NONE" {
-				log.Println("player0 sent:", input.Content)
-			}
 			players[0].Command = input.Content
 		case input := <-players[1].InputChan:
-			if input.Content != "NONE" {
-				log.Println("player1 sent:", input.Content)
-			}
 			players[1].Command = input.Content
 		}
 	}
