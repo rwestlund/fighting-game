@@ -37,7 +37,7 @@ func (p *Player) Status() PlayerStatus {
 
 // This is called every mainloop cycle, and does two things: regenerate stamina, and make progress toward exiting the current state.
 func (p *Player) PassTime(amount int) {
-	p.Stamina += 0.1
+//	p.Stamina += 0.1
 	if p.Stamina > 100 {
 		p.Stamina = 100
 	}
@@ -71,6 +71,8 @@ const LIGHT_ATK_CNTR_SAVE_COST float32 = 10.0
 const HEAVY_ATK_DMG int = 7
 const HEAVY_ATK_SPD int = 80
 const HEAVY_ATK_COST float32 = 15.0
+const HEAVY_ATK_BLK_COST float32 = 20.0
+const HEAVY_ATK_BLKED_DMG int = 2
 
 //INTERRUPTABLE_STATES := map[string]bool{"standing":true,"blocking":true}
 //TERMINAL_STATES := map[string]bool{"standing":true,"blocking":true,"countered":true}
@@ -97,14 +99,19 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 				}
 				switch player.Finished {
 				case "light attack":
-					// If they were blocking and they have enough stamina to block a light attack...
-					if enemy.State == "blocking" && enemy.Stamina > LIGHT_ATK_BLK_COST {
-						enemy.Stamina -= LIGHT_ATK_BLK_COST
-						// If they haven't been blocking as long as the attack was in progress; that is, if they blocked reactively...
-						if -enemy.StateDuration < LIGHT_ATK_SPD {
-							// The player is counterattacked. They are placed in a stunned state that they must press a button to escape before the counterattack lands.
-							player.SetState("countered", -1)
-							enemy.SetState("counterattack", LIGHT_ATK_CNTR_SPD)
+					if enemy.State == "blocking" {
+						if enemy.Stamina >= LIGHT_ATK_BLK_COST {
+							enemy.Stamina -= LIGHT_ATK_BLK_COST
+							// If they haven't been blocking as long as the attack was in progress; that is, if they blocked reactively...
+							if -enemy.StateDuration < LIGHT_ATK_SPD {
+								// The player is counterattacked. They are placed in a stunned state that they must press a button to escape before the counterattack lands.
+								player.SetState("countered", -1)
+								enemy.SetState("counterattack", LIGHT_ATK_CNTR_SPD)
+							}
+						} else {
+							// If you try to block an attack but you don't have enough stamina, you still lose your stamina and you also take damage.
+							enemy.Stamina = 0.0
+							enemy.Life -= LIGHT_ATK_DMG
 						}
 					} else {
 						// If the enemy wasn't blocking, they just take damage.
@@ -114,6 +121,18 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 					// No conditions here because if you dodge the counter attack it puts the enemy out of the counterattacking state.
 					enemy.Life -= LIGHT_ATK_CNTR_DMG
 					enemy.SetState("standing", 0)
+				case "heavy attack":
+					if enemy.State == "blocking" {
+						if enemy.Stamina >= HEAVY_ATK_BLK_COST {
+							enemy.Stamina-=HEAVY_ATK_BLK_COST
+							enemy.Life-=HEAVY_ATK_BLKED_DMG
+						} else {
+							enemy.Stamina=0.0
+							enemy.Life-=HEAVY_ATK_DMG
+						}
+					} else {
+							enemy.Life-=HEAVY_ATK_DMG
+					}
 				}
 				player.Finished = ""
 				switch player.Command {
