@@ -9,7 +9,6 @@ import (
 // The Command field is the current input from the player (kept up to date by the concurrently running input func for the player).
 // The state field keeps track of what the player is doing. It has values like "standing", "blocking", "light attack", etc.
 // The StateDuration field shows how much longer the player will remain in their current state.
-// The BlockDuration field tells how long has the player has been blocking for. This is used to tell whether the player blocked reactively to counter an attack as opposed to just holding down block before it started.
 // The Finished field shows what state the player just exited. It's used to know when an attack is supposed to land.
 type Player struct {
 	Name          string
@@ -51,7 +50,6 @@ func (p *Player) PassTime(amount int) {
 }
 
 func (p *Player) SetState(state string, duration int) {
-	log.Println("setting state", state)
 	p.State = state
 	p.StateDuration = duration
 }
@@ -70,6 +68,9 @@ const LIGHT_ATK_BLK_COST float32 = 8.0
 const LIGHT_ATK_CNTR_SPD int = 30
 const LIGHT_ATK_CNTR_DMG int = 3
 const LIGHT_ATK_CNTR_SAVE_COST float32 = 10.0
+const HEAVY_ATK_DMG int = 7
+const HEAVY_ATK_SPD int = 80
+const HEAVY_ATK_COST float32 = 15.0
 
 //INTERRUPTABLE_STATES := map[string]bool{"standing":true,"blocking":true}
 //TERMINAL_STATES := map[string]bool{"standing":true,"blocking":true,"countered":true}
@@ -112,6 +113,7 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 				case "counterattack":
 					// No conditions here because if you dodge the counter attack it puts the enemy out of the counterattacking state.
 					enemy.Life -= LIGHT_ATK_CNTR_DMG
+					enemy.SetState("standing", 0)
 				}
 				player.Finished = ""
 				switch player.Command {
@@ -123,10 +125,22 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 					if INTERRUPTABLE_STATES[player.State] && player.State != "blocking" {
 						player.SetState("blocking", 0)
 					}
+				case "SAVE":
+					log.Println("got save command")
+					if player.State == "countered" {
+						log.Println("saving")
+						player.SetState("standing", 0)
+						enemy.SetState("standing", 0)
+					}
 				case "LIGHT":
 					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= LIGHT_ATK_COST {
 						player.SetState("light attack", LIGHT_ATK_SPD)
 						player.Stamina -= LIGHT_ATK_COST
+					}
+				case "HEAVY":
+					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= HEAVY_ATK_COST {
+						player.SetState("heavy attack", HEAVY_ATK_SPD)
+						player.Stamina -= HEAVY_ATK_COST
 					}
 				}
 				if player.Command != "BLOCK" {
@@ -134,21 +148,23 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 				}
 			}
 		case input := <-players[0].InputChan:
+			if input.Content != "NONE" {
+				log.Println("player0 sent:", input.Content)
+			}
 			players[0].Command = input.Content
-			if input.Content == "LIGHT" {
-			}
 		case input := <-players[1].InputChan:
-			players[1].Command = input.Content
-			if input.Content == "LIGHT" {
+			if input.Content != "NONE" {
+				log.Println("player1 sent:", input.Content)
 			}
+			players[1].Command = input.Content
 		}
 	}
 }
 
 func clock(channel chan bool) {
-	timer := time.NewTimer(50 * time.Millisecond)
+	timer := time.NewTimer(10 * time.Millisecond)
 	for range timer.C {
-		timer.Reset(50 * time.Millisecond)
+		timer.Reset(10 * time.Millisecond)
 		channel <- true
 	}
 }

@@ -75,3 +75,26 @@ main {
     background-color: yellow;
     float:right;
 }
+
+#ownDurBar {
+    width: 98%;
+    background-color: grey;
+    float:left;
+}
+#ownDuration {
+    height: 30px;
+    width: 0%;
+    background-color: black;
+    float:left;
+}
+#enemyDurBar {
+    width: 98%;
+    background-color: grey;
+    float:right;
+}
+#enemyDuration {
+    height: 30px;
+    width: 0%;
+    background-color: black;
+    float:right;
+}

@@ -96,20 +96,29 @@ function battle () {
       input = "DODGE"
       return
     }
+    if (e.ctrlKey) {
+      input = "SAVE"
+      return
+    }
   });
   socket.onmessage = function(e) {
     var update = JSON.parse(e.data)
     document.getElementById('ownLife').style.width=update.self.life.toString()+"%"
     document.getElementById('ownStam').style.width=update.self.stamina.toString()+"%"
+    document.getElementById('ownDuration').style.width=update.self.stateDur.toString()+"%"
     document.getElementById('enemyLife').style.width=update.enemy.life.toString()+"%"
     document.getElementById('enemyStam').style.width=update.enemy.stamina.toString()+"%"
+    document.getElementById('enemyDuration').style.width=update.enemy.stateDur.toString()+"%"
   };
   function sendUpdate () {
+    console.log("sending input to server:",input)
     socket.send(JSON.stringify({
     "username":username,
     "message":input,
     "command":""}))
-    if (input!="BLOCK"){input = "NONE"}
+    if (input!="BLOCK"){
+      input = "NONE"
+    }
   }
-  setInterval(sendUpdate,100)
+  setInterval(sendUpdate,20)
 }
