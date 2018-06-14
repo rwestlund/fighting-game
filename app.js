@@ -95,10 +95,10 @@ function battle () {
     console.log("update received:")
     var update = JSON.parse(e.data)
     console.log(update)
-    document.getElementById('ownLife').style.width=update.ownLife.toString()+"%"
-    document.getElementById('ownStam').style.width=update.ownStam.toString()+"%"
-    document.getElementById('enemyLife').style.width=update.enemyLife.toString()+"%"
-    document.getElementById('enemyStam').style.width=update.enemyStam.toString()+"%"
+    document.getElementById('ownLife').style.width=update.self.life.toString()+"%"
+    document.getElementById('ownStam').style.width=update.self.stamina.toString()+"%"
+    document.getElementById('enemyLife').style.width=update.enemy.life.toString()+"%"
+    document.getElementById('enemyStam').style.width=update.enemy.stamina.toString()+"%"
   };
   function sendUpdate () {
     console.log("sending input to server:"+input)

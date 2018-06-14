@@ -23,6 +23,19 @@ type Player struct {
 	Finished      string
 }
 
+// This struct is passed instead of Player to the client in Updates so that unneeded fields like the channels aren't passed.
+type PlayerStatus struct {
+	Life          int     `json:"life"`
+	Stamina       float32 `json:"stamina"`
+	State         string  `json:"state"`
+	StateDuration int     `json:"stateDur"`
+}
+
+func (p *Player) Status() PlayerStatus {
+	return PlayerStatus{Life: p.Life, Stamina: p.Stamina, State: p.State, StateDuration: p.StateDuration}
+
+}
+
 // This is called every mainloop cycle, and does two things: regenerate stamina, and make progress toward exiting the current state.
 func (p *Player) PassTime(amount int) {
 	p.Stamina += 0.1
@@ -44,16 +57,8 @@ func (p *Player) SetState(state string, duration int) {
 
 // One of these is sent back to each player every mainloop cycle. Note that the players don't know which player they are internally - it doesn't matter.
 type Update struct {
-	OwnLife       int     `json:"ownLife"`
-	OwnStam       float32 `json:"ownStam"`
-	OwnState      string  `json:"ownState"`
-	OwnStateDur   int     `json:"ownStateDur"`
-	OwnBlockDur   int     `json:"ownBlockDur"`
-	EnemyLife     int     `json:"enemyLife"`
-	EnemyStam     float32 `json:"enemyStam"`
-	EnemyState    string  `json:"enemyState"`
-	EnemyStateDur int     `json:"enemyStateDur"`
-	EnemyBlockDur int     `json:"enemyBlockDur"`
+	Self  PlayerStatus `json:"self"`
+	Enemy PlayerStatus `json:"enemy"`
 }
 
 func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
@@ -63,24 +68,19 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 	const LIGHT_ATTACK_COST float32 = 5.0
 	const LIGHT_ATTACK_BLK_COST float32 = 5.0
 	const LIGHT_ATTACK_SPD int = 50
-	player1 := Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}
-	player2 := Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}
-	players := []*Player{&player1, &player2}
-	go input(&player1)
-	go input(&player2)
+	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, BlockDuration: 0, Finished: ""}}
+	go input(players[0])
+	go input(players[1])
 
-	for player1.Life > 0 && player2.Life > 0 {
+	for players[0].Life > 0 && players[1].Life > 0 {
 		log.Println("mainloop")
 		time.Sleep(100 * time.Millisecond)
-		player1.UpdateChan <- Update{OwnLife: player1.Life, OwnStam: player1.Stamina, OwnState: player1.State, OwnStateDur: player1.StateDuration, OwnBlockDur: player1.BlockDuration, EnemyLife: player2.Life, EnemyStam: player2.Stamina, EnemyState: player2.State, EnemyStateDur: player2.StateDuration, EnemyBlockDur: player2.BlockDuration}
-		player2.UpdateChan <- Update{OwnLife: player2.Life, OwnStam: player2.Stamina, OwnState: player2.State, OwnStateDur: player2.StateDuration, OwnBlockDur: player2.BlockDuration, EnemyLife: player1.Life, EnemyStam: player1.Stamina, EnemyState: player1.State, EnemyStateDur: player1.StateDuration, EnemyBlockDur: player1.BlockDuration}
-		log.Println("INFO", player1.Stamina)
+		players[0].UpdateChan <- Update{Self: players[0].Status(), Enemy: players[1].Status()}
+		players[1].UpdateChan <- Update{Self: players[1].Status(), Enemy: players[0].Status()}
 		// Do the backend stuff.
 		for _, player := range players {
 			player.PassTime(1)
-		}
-		// Get input from the players.
-		for _, player := range players {
+			// Get input from the players.
 			switch player.Command {
 			case "LIGHT":
 				player.Command = "NONE"
@@ -97,8 +97,6 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 // This function listens continuously for an input from the player and passes it through to the player's Command field, where the mainloop can see it.
 func input(player *Player) {
 	for true {
-		command := <-player.InputChan
-		log.Println("input() printing player command:", command)
-		player.Command = command.Content
+		player.Command = (<-player.InputChan).Content
 	}
 }
