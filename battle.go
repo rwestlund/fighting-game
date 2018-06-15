@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -42,7 +44,8 @@ func (p *Player) PassTime(amount int) {
 		p.Stamina = 100
 	}
 	p.StateDuration -= amount
-	if p.StateDuration <= 0 && !TERMINAL_STATES[p.State] {
+	// If it starts with "interrupt", it's one of the heavy attack interrupt states. There are eight of them, so I didn't think it was practical to just list them all.
+	if p.StateDuration <= 0 && !INTERRUPTABLE_STATES[p.State] && !strings.HasPrefix(p.State, "interrupt") {
 		p.Finished = p.State
 		p.State = "standing"
 	}
@@ -66,12 +69,12 @@ const LIGHT_ATK_COST float32 = 10.0
 const LIGHT_ATK_BLK_COST float32 = 8.0
 const LIGHT_ATK_CNTR_SPD int = 30
 const LIGHT_ATK_CNTR_DMG int = 3
-const HEAVY_ATK_DMG int = 7
-const HEAVY_ATK_SPD int = 80
+const HEAVY_ATK_DMG int = 6
+const HEAVY_ATK_SPD int = 100
 const HEAVY_ATK_COST float32 = 15.0
 const HEAVY_ATK_BLK_COST float32 = 20.0
 const HEAVY_ATK_BLKED_DMG int = 2
-const DODGE_COST float32 = 15.0
+const DODGE_COST float32 = 20.0
 const DODGE_WINDOW int = 25
 
 //INTERRUPTABLE_STATES := map[string]bool{"standing":true,"blocking":true}
@@ -79,11 +82,14 @@ const DODGE_WINDOW int = 25
 var INTERRUPTABLE_STATES map[string]bool = map[string]bool{"standing": true, "blocking": true}
 var TERMINAL_STATES map[string]bool = map[string]bool{"standing": true, "blocking": true, "countered": true}
 var ATTACK_STATES map[string]bool = map[string]bool{"light attack": true, "heavy attack": true}
+var INTERRUPT_RESOLVE_KEYS []string = []string{"_up", "_down", "_left", "_right"}
 
 func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
 	log.Println("in battle")
-	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}}
+	// Seed the random number generator and initialize the clock and players.
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	ticker := time.NewTicker(10 * time.Millisecond)
+	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}}
 	for players[0].Life > 0 && players[1].Life > 0 {
 		select {
 		// Each mainloop cycle:
@@ -132,6 +138,7 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 						}
 					} else {
 						enemy.Life -= HEAVY_ATK_DMG
+						enemy.SetState("standing", 0)
 					}
 				}
 				player.Finished = ""
@@ -159,13 +166,43 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 					}
 				case "LIGHT":
 					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= LIGHT_ATK_COST {
-						player.SetState("light attack", LIGHT_ATK_SPD)
 						player.Stamina -= LIGHT_ATK_COST
+						// If the attack is going to interrupt a heavy attack, enter the interrupt mode.
+						if enemy.State == "heavy attack" && enemy.StateDuration > LIGHT_ATK_SPD {
+							log.Println("entered 1")
+							key := INTERRUPT_RESOLVE_KEYS[random.Intn(4)]
+							player.SetState("interrupting heavy"+key, 0)
+							enemy.SetState("interrupted heavy"+key, 0)
+							enemy.Life -= LIGHT_ATK_DMG
+							log.Println("exited 1")
+						} else {
+							player.SetState("light attack", LIGHT_ATK_SPD)
+						}
 					}
 				case "HEAVY":
 					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= HEAVY_ATK_COST {
 						player.SetState("heavy attack", HEAVY_ATK_SPD)
 						player.Stamina -= HEAVY_ATK_COST
+					}
+				default:
+					if strings.HasPrefix(player.Command, "INTERRUPT_") && strings.HasPrefix(player.State, "interrupt") {
+						// Position 10 is just after the '_'.
+						log.Println("player.Command[10:]:", player.Command[10:], "player.State:", player.State[strings.Index(player.State, "_")+1:])
+						// If we hit the right button:
+						if strings.ToLower(player.Command[10:]) == player.State[strings.Index(player.State, "_")+1:] {
+							log.Println("interrupt worked")
+							// If we're not the interrupting player, we're the heavy attack player, so the heavy attack hits.
+							if !strings.HasPrefix(player.State, "interrupting") {
+								enemy.Life -= HEAVY_ATK_DMG
+							}
+						} else {
+							// Same as above only this time we hit the wrong button, so the condition is reversed - we take damage if we're the interrupting player.
+							if strings.HasPrefix(player.State, "interrupting") {
+								enemy.Life -= HEAVY_ATK_DMG
+							}
+						}
+						player.SetState("standing", 0)
+						enemy.SetState("standing", 0)
 					}
 				}
 				if player.Command != "BLOCK" {

@@ -100,6 +100,22 @@ function battle () {
       input = "SAVE"
       return
     }
+    if (e.keyCode == 37) {
+      input = "INTERRUPT_LEFT"
+      return
+    }
+    if (e.keyCode == 38) {
+      input = "INTERRUPT_UP"
+      return
+    }
+    if (e.keyCode == 39) {
+      input = "INTERRUPT_RIGHT"
+      return
+    }
+    if (e.keyCode == 40) {
+      input = "INTERRUPT_DOWN"
+      return
+    }
   });
   socket.onmessage = function(e) {
     var update = JSON.parse(e.data)
@@ -119,7 +135,13 @@ function battle () {
     document.getElementById('enemyLightSymbol').style.display="none"
     document.getElementById('enemyHeavySymbol').style.display="none"
     document.getElementById('enemyRightLightSymbol').style.display="none"
+    document.getElementById('leftArrowSymbol').style.display="none"
+    document.getElementById('upArrowSymbol').style.display="none"
+    document.getElementById('rightArrowSymbol').style.display="none"
+    document.getElementById('downArrowSymbol').style.display="none"
     switch (ownState) {
+      case "standing":
+        break
       case "blocking":
         document.getElementById('ownBlockSymbol').style.display="inline-block"
         break;
@@ -136,9 +158,17 @@ function battle () {
       case "countered":
         document.getElementById('ownLeftLightSymbol').style.display="inline-block"
         document.getElementById('ownBlockSymbol').style.display="inline-block"
+        break;
+      default:
+//        if (ownState.search("interrupt")==0) {
+        arrow=ownState.slice(ownState.indexOf("_")+1,ownState.length)
+        document.getElementById('ownHeavySymbol').style.display="inline-block"
+        document.getElementById(arrow+'ArrowSymbol').style.display="inline-block"
     }
     console.log("checking enemy state")
     switch (enemyState) {
+      case "standing":
+        break
       case "blocking":
         console.log("enemy blocking")
         document.getElementById('enemyBlockSymbol').style.display="inline-block"
@@ -156,6 +186,9 @@ function battle () {
       case "countered":
         document.getElementById('enemyRightLightSymbol').style.display="inline-block"
         document.getElementById('enemyBlockSymbol').style.display="inline-block"
+        break;
+      default:
+        document.getElementById('enemyLightSymbol').style.display="inline-block"
     }
   };
   function sendUpdate () {
