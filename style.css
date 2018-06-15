@@ -102,3 +102,11 @@ main {
     background-color: black;
     float:right;
 }
+
+#ownState {
+  float: left;
+}
+
+#enemyState {
+  float: right;
+}
