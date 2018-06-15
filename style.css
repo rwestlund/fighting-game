@@ -80,6 +80,8 @@ main {
     width: 98%;
     background-color: grey;
     float:left;
+    margin-top:5px;
+    margin-bottom:5px;
 }
 #ownDuration {
     height: 30px;
@@ -91,6 +93,8 @@ main {
     width: 98%;
     background-color: grey;
     float:right;
+    margin-top:5px;
+    margin-bottom:5px;
 }
 #enemyDuration {
     height: 30px;

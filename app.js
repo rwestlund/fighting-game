@@ -109,9 +109,57 @@ function battle () {
     document.getElementById('enemyLife').style.width=update.enemy.life.toString()+"%"
     document.getElementById('enemyStam').style.width=update.enemy.stamina.toString()+"%"
     document.getElementById('enemyDuration').style.width=update.enemy.stateDur.toString()+"%"
+    var ownState=update.self.state
+    var enemyState=update.enemy.state
+    document.getElementById('ownBlockSymbol').style.display="none"
+    document.getElementById('ownLightSymbol').style.display="none"
+    document.getElementById('ownLeftLightSymbol').style.display="none"
+    document.getElementById('ownHeavySymbol').style.display="none"
+    document.getElementById('enemyBlockSymbol').style.display="none"
+    document.getElementById('enemyLightSymbol').style.display="none"
+    document.getElementById('enemyHeavySymbol').style.display="none"
+    document.getElementById('enemyRightLightSymbol').style.display="none"
+    switch (ownState) {
+      case "blocking":
+        document.getElementById('ownBlockSymbol').style.display="inline-block"
+        break;
+      case "light attack":
+        document.getElementById('ownLightSymbol').style.display="inline-block"
+        break;
+      case "heavy attack":
+        document.getElementById('ownHeavySymbol').style.display="inline-block"
+        break;
+      case "counterattack":
+        document.getElementById('ownBlockSymbol').style.display="inline-block"
+        document.getElementById('ownLightSymbol').style.display="inline-block"
+        break;
+      case "countered":
+        document.getElementById('ownLeftLightSymbol').style.display="inline-block"
+        document.getElementById('ownBlockSymbol').style.display="inline-block"
+    }
+    console.log("checking enemy state")
+    switch (enemyState) {
+      case "blocking":
+        console.log("enemy blocking")
+        document.getElementById('enemyBlockSymbol').style.display="inline-block"
+        break;
+      case "light attack":
+        document.getElementById('enemyLightSymbol').style.display="inline-block"
+        break;
+      case "heavy attack":
+        document.getElementById('enemyHeavySymbol').style.display="inline-block"
+        break;
+      case "counterattack":
+        document.getElementById('enemyBlockSymbol').style.display="inline-block"
+        document.getElementById('enemyLightSymbol').style.display="inline-block"
+        break;
+      case "countered":
+        document.getElementById('enemyRightLightSymbol').style.display="inline-block"
+        document.getElementById('enemyBlockSymbol').style.display="inline-block"
+    }
   };
   function sendUpdate () {
-    console.log("sending input to server:",input)
+//    console.log("sending input to server:",input)
     socket.send(JSON.stringify({
     "username":username,
     "message":input,

@@ -66,14 +66,13 @@ const LIGHT_ATK_COST float32 = 10.0
 const LIGHT_ATK_BLK_COST float32 = 8.0
 const LIGHT_ATK_CNTR_SPD int = 30
 const LIGHT_ATK_CNTR_DMG int = 3
-const LIGHT_ATK_CNTR_SAVE_COST float32 = 10.0
 const HEAVY_ATK_DMG int = 7
 const HEAVY_ATK_SPD int = 80
 const HEAVY_ATK_COST float32 = 15.0
 const HEAVY_ATK_BLK_COST float32 = 20.0
 const HEAVY_ATK_BLKED_DMG int = 2
 const DODGE_COST float32 = 15.0
-const DODGE_WINDOW int = 30
+const DODGE_WINDOW int = 25
 
 //INTERRUPTABLE_STATES := map[string]bool{"standing":true,"blocking":true}
 //TERMINAL_STATES := map[string]bool{"standing":true,"blocking":true,"countered":true}
@@ -84,7 +83,7 @@ var ATTACK_STATES map[string]bool = map[string]bool{"light attack": true, "heavy
 func battle(player1inputChan, player2inputChan chan Message, player1updateChan, player2updateChan chan Update) {
 	log.Println("in battle")
 	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}}
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(10 * time.Millisecond)
 	for players[0].Life > 0 && players[1].Life > 0 {
 		select {
 		// Each mainloop cycle:
