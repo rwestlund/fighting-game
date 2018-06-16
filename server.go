@@ -93,12 +93,15 @@ func dispatcher(newClients <-chan ConnInfo) {
 
 				// Handle lobby command messages.
 			} else if msg.Message.Command != "" {
-				if msg.Message.Command == "READY" {
+				switch msg.Message.Command {
+				case "READY":
 					msg.User.Ready = true
 					// Try to start a match.
 					matchmaker(clients)
-				} else if msg.Message.Command == "UNREADY" {
+				case "UNREADY":
 					msg.User.Ready = false
+				default:
+					log.Println("got unexpected message",msg.Message.Command,"from user",msg.Message.Username)
 				}
 				// Handle lobby chat messages.
 			} else {
