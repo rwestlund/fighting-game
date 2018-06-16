@@ -89,7 +89,12 @@ func dispatcher(newClients <-chan ConnInfo) {
 		case msg := <-messages:
 			// If they're in a game, forward all messages there.
 			if msg.User.InGame {
-				msg.User.BattleInputChan <- msg.Message
+				log.Println(msg.Message)
+				if msg.Message.Command=="END MATCH" {
+					msg.User.InGame = false
+				} else {
+					msg.User.BattleInputChan <- msg.Message
+				}
 
 				// Handle lobby command messages.
 			} else if msg.Message.Command != "" {
@@ -184,5 +189,8 @@ func handleConnection(newClients chan<- ConnInfo) http.Handler {
 func forwardUpdates(dest chan interface{}, src chan Update) {
 	for update := range src {
 		dest <- update
+		if update.Self.Life<=0 || update.Enemy.Life<=0 {
+			return
+		}
 	}
 }

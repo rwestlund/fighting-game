@@ -90,7 +90,7 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()
-	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 100, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}}
+	players := []*Player{&Player{InputChan: player1inputChan, UpdateChan: player1updateChan, Command: "NONE", Life: 1, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}, &Player{InputChan: player2inputChan, UpdateChan: player2updateChan, Command: "NONE", Life: 1, Stamina: 100, State: "standing", StateDuration: 0, Finished: ""}}
 	for players[0].Life > 0 && players[1].Life > 0 {
 		select {
 		// Each mainloop cycle:
@@ -210,6 +210,27 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 			players[0].Command = input.Content
 		case input := <-players[1].InputChan:
 			players[1].Command = input.Content
+		}
+	}
+	// Send one last update to the players so they know how the battle ended.
+	players[0].UpdateChan <- Update{Self: players[0].Status(), Enemy: players[1].Status()}
+	players[1].UpdateChan <- Update{Self: players[1].Status(), Enemy: players[0].Status()}
+
+	// Make some goroutines to catch the last couple inputs from the players. This is necessary to stop server.go from getting stuck trying to send their input through after the battle is over.
+	stop1 := make(chan bool)
+	stop2 := make(chan bool)
+	go catchInput (players[0].InputChan, stop1)
+	go catchInput (players[1].InputChan, stop2)
+	time.Sleep(5*time.Second)
+	stop1 <- true
+	stop2 <- true
+}
+
+func catchInput(channel chan Message, stopChan chan bool) {
+	for true {
+		select {
+		case <-channel:
+		case <-stopChan:return
 		}
 	}
 }
