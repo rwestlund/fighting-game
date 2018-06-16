@@ -66,7 +66,7 @@ type Update struct {
 const LIGHT_ATK_DMG int = 3
 const LIGHT_ATK_SPD int = 50
 const LIGHT_ATK_COST float32 = 10.0
-const LIGHT_ATK_BLK_COST float32 = 8.0
+const LIGHT_ATK_BLK_COST float32 = 12.0
 const LIGHT_ATK_CNTR_SPD int = 30
 const LIGHT_ATK_CNTR_DMG int = 3
 const HEAVY_ATK_DMG int = 6
@@ -75,7 +75,7 @@ const HEAVY_ATK_COST float32 = 15.0
 const HEAVY_ATK_BLK_COST float32 = 20.0
 const HEAVY_ATK_BLKED_DMG int = 2
 const DODGE_COST float32 = 20.0
-const DODGE_WINDOW int = 25
+const DODGE_WINDOW int = 30
 
 //INTERRUPTABLE_STATES := map[string]bool{"standing":true,"blocking":true}
 //TERMINAL_STATES := map[string]bool{"standing":true,"blocking":true,"countered":true}
@@ -169,12 +169,10 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 						player.Stamina -= LIGHT_ATK_COST
 						// If the attack is going to interrupt a heavy attack, enter the interrupt mode.
 						if enemy.State == "heavy attack" && enemy.StateDuration > LIGHT_ATK_SPD {
-							log.Println("entered 1")
 							key := INTERRUPT_RESOLVE_KEYS[random.Intn(4)]
 							player.SetState("interrupting heavy"+key, 0)
 							enemy.SetState("interrupted heavy"+key, 0)
 							enemy.Life -= LIGHT_ATK_DMG
-							log.Println("exited 1")
 						} else {
 							player.SetState("light attack", LIGHT_ATK_SPD)
 						}
@@ -187,10 +185,8 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 				default:
 					if strings.HasPrefix(player.Command, "INTERRUPT_") && strings.HasPrefix(player.State, "interrupt") {
 						// Position 10 is just after the '_'.
-						log.Println("player.Command[10:]:", player.Command[10:], "player.State:", player.State[strings.Index(player.State, "_")+1:])
 						// If we hit the right button:
 						if strings.ToLower(player.Command[10:]) == player.State[strings.Index(player.State, "_")+1:] {
-							log.Println("interrupt worked")
 							// If we're not the interrupting player, we're the heavy attack player, so the heavy attack hits.
 							if !strings.HasPrefix(player.State, "interrupting") {
 								enemy.Life -= HEAVY_ATK_DMG

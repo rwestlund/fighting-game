@@ -165,12 +165,10 @@ function battle () {
         document.getElementById('ownHeavySymbol').style.display="inline-block"
         document.getElementById(arrow+'ArrowSymbol').style.display="inline-block"
     }
-    console.log("checking enemy state")
     switch (enemyState) {
       case "standing":
         break
       case "blocking":
-        console.log("enemy blocking")
         document.getElementById('enemyBlockSymbol').style.display="inline-block"
         break;
       case "light attack":
@@ -192,7 +190,6 @@ function battle () {
     }
   };
   function sendUpdate () {
-//    console.log("sending input to server:",input)
     socket.send(JSON.stringify({
     "username":username,
     "message":input,
