@@ -17,3 +17,7 @@ The Stats
 - Counterattack: deals 3 damage, cost no stamina, takes 30 cycles to land, and costs nothing to save against.
 - Heavy attack: deals 6 damage, costs 15 stamina, takes 100 cycles to land, costs 20 stamina to block, and deals 2 damage if blocked.
 - Dodge: costs 20 stamina, takes 30 cycles.
+
+License
+=======
+This code is under the BSD 2-Clause license. See the LICENSE file for the full text.

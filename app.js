@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2018, Ryan Westlund.
+ * This code is under the BSD 3-Clause license.
+ */
+
 var newMsg = ''; // Holds new messages to be sent to the server
 var chatContent = ''; // A running list of chat messages displayed on the screen
 var username = null; // Our username
