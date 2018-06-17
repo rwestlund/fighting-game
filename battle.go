@@ -109,107 +109,10 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 				if p == 1 {
 					enemy = players[0]
 				}
-				switch player.Finished {
-				case "light attack":
-					if enemy.State == "blocking" {
-						if enemy.Stamina >= LIGHT_ATK_BLK_COST {
-							enemy.Stamina -= LIGHT_ATK_BLK_COST
-							// If they haven't been blocking as long as the attack was in progress; that is, if they blocked reactively...
-							if -enemy.StateDuration < LIGHT_ATK_SPD {
-								// The player is counterattacked. They are placed in a stunned state that they must press a button to escape before the counterattack lands.
-								player.SetState("countered", -1)
-								enemy.SetState("counterattack", LIGHT_ATK_CNTR_SPD)
-							}
-						} else {
-							// If you try to block an attack but you don't have enough stamina, you still lose your stamina and you also take damage.
-							enemy.Stamina = 0.0
-							enemy.Life -= LIGHT_ATK_DMG
-						}
-					} else {
-						// If the enemy wasn't blocking, they just take damage.
-						enemy.Life -= LIGHT_ATK_DMG
-					}
-				case "counterattack":
-					// No conditions here because if you dodge the counter attack it puts the enemy out of the counterattacking state.
-					enemy.Life -= LIGHT_ATK_CNTR_DMG
-					enemy.SetState("standing", 0)
-				case "heavy attack":
-					if enemy.State == "blocking" {
-						if enemy.Stamina >= HEAVY_ATK_BLK_COST {
-							enemy.Stamina -= HEAVY_ATK_BLK_COST
-							enemy.Life -= HEAVY_ATK_BLKED_DMG
-						} else {
-							enemy.Stamina = 0.0
-							enemy.Life -= HEAVY_ATK_DMG
-						}
-					} else {
-						enemy.Life -= HEAVY_ATK_DMG
-						enemy.SetState("standing", 0)
-					}
+				if player.Finished != "" {
+					resolveState(player, enemy)
 				}
-				player.Finished = ""
-				switch player.Command {
-				case "NONE":
-					if player.State == "blocking" {
-						player.SetState("standing", 0)
-					}
-				case "BLOCK":
-					if INTERRUPTABLE_STATES[player.State] && player.State != "blocking" {
-						player.SetState("blocking", 0)
-					}
-				case "DODGE":
-					// Dodges take time, unlike blocks which can be started at the last possible second.
-					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= DODGE_COST && enemy.StateDuration > DODGE_WINDOW {
-						player.Stamina -= DODGE_COST
-						if ATTACK_STATES[enemy.State] {
-							enemy.SetState("standing", 0)
-						}
-					}
-				case "SAVE":
-					if player.State == "countered" {
-						player.SetState("standing", 0)
-						enemy.SetState("standing", 0)
-					}
-				case "LIGHT":
-					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= LIGHT_ATK_COST {
-						player.Stamina -= LIGHT_ATK_COST
-						// If the attack is going to interrupt a heavy attack, enter the interrupt mode.
-						if enemy.State == "heavy attack" && enemy.StateDuration > LIGHT_ATK_SPD {
-							key := INTERRUPT_RESOLVE_KEYS[random.Intn(4)]
-							player.SetState("interrupting heavy"+key, 0)
-							enemy.SetState("interrupted heavy"+key, 0)
-							enemy.Life -= LIGHT_ATK_DMG
-						} else {
-							player.SetState("light attack", LIGHT_ATK_SPD)
-						}
-					}
-				case "HEAVY":
-					if INTERRUPTABLE_STATES[player.State] && player.Stamina >= HEAVY_ATK_COST {
-						player.SetState("heavy attack", HEAVY_ATK_SPD)
-						player.Stamina -= HEAVY_ATK_COST
-					}
-				default:
-					if strings.HasPrefix(player.Command, "INTERRUPT_") && strings.HasPrefix(player.State, "interrupt") {
-						// Position 10 is just after the '_'.
-						// If we hit the right button:
-						if strings.ToLower(player.Command[10:]) == player.State[strings.Index(player.State, "_")+1:] {
-							// If we're not the interrupting player, we're the heavy attack player, so the heavy attack hits.
-							if !strings.HasPrefix(player.State, "interrupting") {
-								enemy.Life -= HEAVY_ATK_DMG
-							}
-						} else {
-							// Same as above only this time we hit the wrong button, so the condition is reversed - we take damage if we're the interrupting player.
-							if strings.HasPrefix(player.State, "interrupting") {
-								enemy.Life -= HEAVY_ATK_DMG
-							}
-						}
-						player.SetState("standing", 0)
-						enemy.SetState("standing", 0)
-					}
-				}
-				if player.Command != "BLOCK" {
-					player.Command = "NONE"
-				}
+				resolveCommand(player, enemy, random)
 			}
 		case input := <-players[0].InputChan:
 			players[0].Command = input.Content
@@ -229,6 +132,114 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 	time.Sleep(5 * time.Second)
 	stop1 <- true
 	stop2 <- true
+}
+
+func resolveState(player *Player, enemy *Player) {
+	switch player.Finished {
+	case "light attack":
+		if enemy.State == "blocking" {
+			if enemy.Stamina >= LIGHT_ATK_BLK_COST {
+				enemy.Stamina -= LIGHT_ATK_BLK_COST
+				// If they haven't been blocking as long as the attack was in progress; that is, if they blocked reactively...
+				if -enemy.StateDuration < LIGHT_ATK_SPD {
+					// The player is counterattacked. They are placed in a stunned state that they must press a button to escape before the counterattack lands.
+					player.SetState("countered", -1)
+					enemy.SetState("counterattack", LIGHT_ATK_CNTR_SPD)
+				}
+			} else {
+				// If you try to block an attack but you don't have enough stamina, you still lose your stamina and you also take damage.
+				enemy.Stamina = 0.0
+				enemy.Life -= LIGHT_ATK_DMG
+			}
+		} else {
+			// If the enemy wasn't blocking, they just take damage.
+			enemy.Life -= LIGHT_ATK_DMG
+		}
+	case "counterattack":
+		// No conditions here because if you dodge the counter attack it puts the enemy out of the counterattacking state.
+		enemy.Life -= LIGHT_ATK_CNTR_DMG
+		enemy.SetState("standing", 0)
+	case "heavy attack":
+		if enemy.State == "blocking" {
+			if enemy.Stamina >= HEAVY_ATK_BLK_COST {
+				enemy.Stamina -= HEAVY_ATK_BLK_COST
+				enemy.Life -= HEAVY_ATK_BLKED_DMG
+			} else {
+				enemy.Stamina = 0.0
+				enemy.Life -= HEAVY_ATK_DMG
+			}
+		} else {
+			enemy.Life -= HEAVY_ATK_DMG
+			enemy.SetState("standing", 0)
+		}
+	}
+	player.Finished = ""
+
+}
+
+func resolveCommand(player *Player, enemy *Player, random *rand.Rand) {
+	switch player.Command {
+	case "NONE":
+		if player.State == "blocking" {
+			player.SetState("standing", 0)
+		}
+	case "BLOCK":
+		if INTERRUPTABLE_STATES[player.State] && player.State != "blocking" {
+			player.SetState("blocking", 0)
+		}
+	case "DODGE":
+		// Dodges take time, unlike blocks which can be started at the last possible second.
+		if INTERRUPTABLE_STATES[player.State] && player.Stamina >= DODGE_COST && enemy.StateDuration > DODGE_WINDOW {
+			player.Stamina -= DODGE_COST
+			if ATTACK_STATES[enemy.State] {
+				enemy.SetState("standing", 0)
+			}
+		}
+	case "SAVE":
+		if player.State == "countered" {
+			player.SetState("standing", 0)
+			enemy.SetState("standing", 0)
+		}
+	case "LIGHT":
+		if INTERRUPTABLE_STATES[player.State] && player.Stamina >= LIGHT_ATK_COST {
+			player.Stamina -= LIGHT_ATK_COST
+			// If the attack is going to interrupt a heavy attack, enter the interrupt mode.
+			if enemy.State == "heavy attack" && enemy.StateDuration > LIGHT_ATK_SPD {
+				key := INTERRUPT_RESOLVE_KEYS[random.Intn(4)]
+				player.SetState("interrupting heavy"+key, 0)
+				enemy.SetState("interrupted heavy"+key, 0)
+				enemy.Life -= LIGHT_ATK_DMG
+			} else {
+				player.SetState("light attack", LIGHT_ATK_SPD)
+			}
+		}
+	case "HEAVY":
+		if INTERRUPTABLE_STATES[player.State] && player.Stamina >= HEAVY_ATK_COST {
+			player.SetState("heavy attack", HEAVY_ATK_SPD)
+			player.Stamina -= HEAVY_ATK_COST
+		}
+	default:
+		if strings.HasPrefix(player.Command, "INTERRUPT_") && strings.HasPrefix(player.State, "interrupt") {
+			// Position 10 is just after the '_'.
+			// If we hit the right button:
+			if strings.ToLower(player.Command[10:]) == player.State[strings.Index(player.State, "_")+1:] {
+				// If we're not the interrupting player, we're the heavy attack player, so the heavy attack hits.
+				if !strings.HasPrefix(player.State, "interrupting") {
+					enemy.Life -= HEAVY_ATK_DMG
+				}
+			} else {
+				// Same as above only this time we hit the wrong button, so the condition is reversed - we take damage if we're the interrupting player.
+				if strings.HasPrefix(player.State, "interrupting") {
+					enemy.Life -= HEAVY_ATK_DMG
+				}
+			}
+			player.SetState("standing", 0)
+			enemy.SetState("standing", 0)
+		}
+	}
+	if player.Command != "BLOCK" {
+		player.Command = "NONE"
+	}
 }
 
 func catchInput(channel chan Message, stopChan chan bool) {
