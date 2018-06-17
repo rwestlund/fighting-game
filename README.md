@@ -20,4 +20,4 @@ The Stats
 
 License
 =======
-This code is under the BSD 2-Clause license. See the LICENSE file for the full text.
+This code is under the BSD 3-Clause license. See the LICENSE file for the full text.
