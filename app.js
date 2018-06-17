@@ -190,17 +190,28 @@ function battle () {
     return
   });
   document.addEventListener('keydown', function(e) {
-    if (e.keyCode == 32) {
-      input = "BLOCK"
-      return
-    }
-    if (e.keyCode == 81) {
-      input = "LIGHT"
-      return
-    }
-    if (e.keyCode == 87) {
-      input = "HEAVY"
-      return
+    switch (e.keyCode) {
+      case 32:
+        input = "BLOCK"
+        return
+      case 81:
+        input = "LIGHT"
+        return
+      case 87:
+        input = "HEAVY"
+        return
+      case 37:
+        input = "INTERRUPT_LEFT"
+        return
+      case 38:
+        input = "INTERRUPT_UP"
+        return
+      case 39:
+        input = "INTERRUPT_RIGHT"
+        return
+      case 40:
+        input = "INTERRUPT_DOWN"
+        return
     }
     if (e.shiftKey) {
       input = "DODGE"
@@ -208,22 +219,6 @@ function battle () {
     }
     if (e.ctrlKey) {
       input = "SAVE"
-      return
-    }
-    if (e.keyCode == 37) {
-      input = "INTERRUPT_LEFT"
-      return
-    }
-    if (e.keyCode == 38) {
-      input = "INTERRUPT_UP"
-      return
-    }
-    if (e.keyCode == 39) {
-      input = "INTERRUPT_RIGHT"
-      return
-    }
-    if (e.keyCode == 40) {
-      input = "INTERRUPT_DOWN"
       return
     }
   });
