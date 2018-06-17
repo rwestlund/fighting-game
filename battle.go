@@ -224,9 +224,9 @@ func battle(player1inputChan, player2inputChan chan Message, player1updateChan, 
 	// Make some goroutines to catch the last couple inputs from the players. This is necessary to stop server.go from getting stuck trying to send their input through after the battle is over.
 	stop1 := make(chan bool)
 	stop2 := make(chan bool)
-	go catchInput (players[0].InputChan, stop1)
-	go catchInput (players[1].InputChan, stop2)
-	time.Sleep(5*time.Second)
+	go catchInput(players[0].InputChan, stop1)
+	go catchInput(players[1].InputChan, stop2)
+	time.Sleep(5 * time.Second)
 	stop1 <- true
 	stop2 <- true
 }
@@ -235,7 +235,8 @@ func catchInput(channel chan Message, stopChan chan bool) {
 	for true {
 		select {
 		case <-channel:
-		case <-stopChan:return
+		case <-stopChan:
+			return
 		}
 	}
 }

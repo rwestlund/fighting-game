@@ -95,7 +95,7 @@ func dispatcher(newClients <-chan ConnInfo) {
 			// If they're in a game, forward all messages there.
 			if msg.User.InGame {
 				log.Println(msg.Message)
-				if msg.Message.Command=="END MATCH" {
+				if msg.Message.Command == "END MATCH" {
 					msg.User.InGame = false
 				} else {
 					msg.User.BattleInputChan <- msg.Message
@@ -111,7 +111,7 @@ func dispatcher(newClients <-chan ConnInfo) {
 				case "UNREADY":
 					msg.User.Ready = false
 				default:
-					log.Println("got unexpected message",msg.Message.Command,"from user",msg.Message.Username)
+					log.Println("got unexpected message", msg.Message.Command, "from user", msg.Message.Username)
 				}
 				// Handle lobby chat messages.
 			} else {
@@ -194,7 +194,7 @@ func handleConnection(newClients chan<- ConnInfo) http.Handler {
 func forwardUpdates(dest chan interface{}, src chan Update) {
 	for update := range src {
 		dest <- update
-		if update.Self.Life<=0 || update.Enemy.Life<=0 {
+		if update.Self.Life <= 0 || update.Enemy.Life <= 0 {
 			return
 		}
 	}
